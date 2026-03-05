@@ -1,0 +1,206 @@
+/* General Settings */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #050505;
+    color: #ff9800;
+    font-family: 'Courier New', Courier, monospace;
+    overflow-x: hidden;
+}
+
+/* Sadece Sağ Tarafta Kalan Animasyon Alanı */
+#particleCanvas {
+    position: fixed;
+    top: 0;
+    right: 0; /* Sağa yasladık */
+    left: auto; /* Solu serbest bıraktık */
+    width: 30%; /* Ekranın sadece sağ %30'unu kaplayacak */
+    height: 100%;
+    z-index: -1;
+}
+
+.content-wrapper {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: flex-start; /* İsmi en sola yaslı tutar */
+    padding: 30px 50px;
+}
+
+.top-left h1 {
+    margin: 0;
+    font-size: 3rem;
+    text-shadow: 0 0 15px rgba(255, 152, 0, 0.6);
+    text-align: left;
+}
+
+/* Container (Liste Kısmı Sola Yaslandı) */
+.container {
+    width: 60%; /* Sağ taraftaki animasyona yer bırakmak için genişliği kıstık */
+    margin: 20px 50px; /* İsmin hizasına, tam sola yasladık */
+    flex-grow: 1;
+}
+
+h2 {
+    font-size: 2.5rem;
+    border-bottom: 2px solid #ff9800;
+    padding-bottom: 10px;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+}
+
+/* List Style */
+.project-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.project-list li {
+    margin-bottom: 15px;
+}
+
+.project-list a {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    background-color: rgba(20, 20, 20, 0.7);
+    padding: 20px;
+    border-left: 4px solid #ff9800;
+    transition: all 0.3s ease;
+}
+
+.project-list a:hover {
+    background-color: rgba(255, 152, 0, 0.1);
+    transform: translateX(15px);
+    box-shadow: 0 0 15px rgba(255, 152, 0, 0.3);
+}
+
+.project-list .title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 8px;
+}
+
+.project-list .desc {
+    font-size: 1.1rem;
+    color: #ff9800;
+}
+
+/* Footer & LinkedIn Icon */
+/* Footer & Social Icons */
+footer {
+    padding: 30px 0;
+    margin-top: auto;
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    gap: 30px; /* İkonlar arası boşluk */
+}
+
+/* Footer & Social Icons */
+footer {
+    padding: 30px 0;
+    margin-top: auto;
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    gap: 30px; /* İkonlar arası boşluk */
+}
+
+.social-icon {
+    color: #ff9800;
+    font-size: 3rem;
+    transition: 0.3s;
+    text-decoration: none;
+}
+
+.social-icon:hover {
+    color: #ffffff;
+    text-shadow: 0 0 20px #ff9800;
+    transform: translateY(-5px); 
+}
+
+/* About Me Sayfası Özel Tasarımı */
+.about-content {
+    background-color: rgba(20, 20, 20, 0.7);
+    padding: 40px;
+    border-left: 4px solid #ff9800;
+    text-align: center; /* Resmi ortalamak için */
+}
+
+/* Yuvarlak, Turuncu Parlamalı Profil Resmi */
+.profile-pic {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%; /* Kare resmi tam yuvarlak yapar */
+    border: 3px solid #ff9800;
+    object-fit: cover; /* Resmin en-boy oranını bozmadan sığdırır */
+    margin-bottom: 30px;
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.5); /* Turuncu parlama efekti */
+}
+
+.about-content p {
+    font-size: 1.15rem;
+    line-height: 1.8;
+    color: #e0e0e0;
+    text-align: justify; /* Yazıları iki yana yaslar (Gazete küpürü gibi) */
+    margin-bottom: 20px;
+}
+
+/* Mobile Optimization (Phones and Tablets) */
+@media (max-width: 768px) {
+    /* İsim alanını küçült ve ortala */
+    header {
+        padding: 20px;
+        justify-content: center;
+    }
+
+    .top-left h1 {
+        font-size: 1.8rem; /* Mobilde yazı çok büyük olmasın */
+        text-align: center;
+    }
+
+    /* Listeyi ekranın tamamına yay */
+    .container {
+        width: 90%; 
+        margin: 10px auto;
+    }
+
+    h2 {
+        font-size: 1.8rem;
+        text-align: center;
+    }
+
+    /* Proje listesi efektini mobilde azalt (parmakla basarken kaymasın) */
+    .project-list a:hover {
+        transform: translateX(5px); 
+    }
+
+    .project-list .title {
+        font-size: 1.2rem;
+    }
+
+    /* Mobilde noktalar sadece sağda değil, tüm arka planda yavaşça aksın */
+    #particleCanvas {
+        width: 100%;
+        opacity: 0.2; /* Yazıların okunması için daha saydam yaptık */
+    }
+
+    /* İkonları biraz daha küçült */
+    .social-icon {
+        font-size: 2.5rem;
+    }
+}
