@@ -3,62 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notes - Berk Muammer KUZU</title>
+
+    <title>Notes &mdash; Berk Muammer KUZU</title>
+    <meta name="description" content="Lecture notes, cheat sheets and documentation collected by Berk Muammer Kuzu: digital design, electromagnetic theory and more.">
+    <link rel="canonical" href="https://berkkuzu.com/notes.html">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="berkkuzu.com">
+    <meta property="og:title" content="Notes &mdash; Berk Muammer KUZU">
+    <meta property="og:description" content="Lecture notes, cheat sheets and documentation: digital design, electromagnetic theory and more.">
+    <meta property="og:url" content="https://berkkuzu.com/notes.html">
+    <meta property="og:image" content="https://berkkuzu.com/Berk_Muammer_Kuzu.png">
+    <meta name="twitter:card" content="summary">
+
+    <meta name="theme-color" content="#050505">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    
-    <canvas id="particleCanvas"></canvas>
+
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <canvas id="particleCanvas" aria-hidden="true"></canvas>
 
     <div class="content-wrapper">
         <header>
             <div class="top-left">
-                <h1><a href="index.html" style="color: inherit; text-decoration: none;">Berk Muammer KUZU</a></h1>
+                <h1><a href="index.html">Berk Muammer KUZU</a></h1>
+                <p class="tagline">Digital design &middot; FPGA / RTL &middot; Embedded systems &middot; Ankara, T&uuml;rkiye</p>
             </div>
+
+            <nav class="site-nav" aria-label="Main">
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="projects.html">Projects</a></li>
+                    <li><a href="notes.html" aria-current="page">Notes</a></li>
+                    <li><a href="about.html">About</a></li>
+                </ul>
+            </nav>
         </header>
 
-        <main class="container">
+        <main class="container" id="main">
             <section id="notes">
-                <h2>Notes & Projects</h2>
-                
+                <h2>Notes &amp; Files</h2>
+                <p class="section-intro">
+                    Lecture notes, cheat sheets and documentation I keep coming back to.
+                    Everything opens in a new tab.
+                </p>
+
                 <ul class="project-list">
-                    
+
                     <li>
-                        <a href="digital_design_cheat_sheet_senol_gulgonul_2025.pdf" target="_blank">
-                            <span class="title">Digital Design Cheat Sheet for Final 2025- Lecturer Senol Gulgonul</span>
-                            <span class="desc">Click to view the PDF file in a new tab.</span>
+                        <a href="digital_design_cheat_sheet_senol_gulgonul_2025.pdf" target="_blank" rel="noopener">
+                            <div class="card-head">
+                                <span class="title">Digital Design Cheat Sheet &mdash; Final 2025</span>
+                                <span class="badge">PDF &middot; 13 MB</span>
+                            </div>
+                            <span class="desc">Lecturer: &#350;enol G&uuml;lg&ouml;n&uuml;l. Click to view the PDF in a new tab.</span>
                         </a>
                     </li>
 
-                     <li>
-                        <a href="https://drive.google.com/file/d/1s8J8oMdS20lcv5a4fG-ATYrxhXVnBCfq/view?usp=sharing" target="_blank">
-                            <span class="title">Electromagnetic Theory Notes</span>
-                            <span class="desc">Click to view the PDF file in a new tab.</span>
-                        </a>
-                    </li>
-
-                    <!-- Yeni eklenen ATA 101 PDF'i -->
                     <li>
-                        <a href="ATA%20101%20(6)-10-Berk%20Muammer%20Kuzu.pdf" target="_blank">
-                            <span class="title">Mustafa Kemal Paşa’nın Samsun’a Çıkması, Genelgeler ve Kongreler ile Milli Mücadele</span>
+                        <a href="https://drive.google.com/file/d/1s8J8oMdS20lcv5a4fG-ATYrxhXVnBCfq/view?usp=sharing" target="_blank" rel="noopener">
+                            <div class="card-head">
+                                <span class="title">Electromagnetic Theory Notes</span>
+                                <span class="badge">Google Drive</span>
+                            </div>
                             <span class="desc">Click to view the PDF file in a new tab.</span>
                         </a>
                     </li>
 
-                    <!-- <li>
-                        <a href="a" target="_blank">
-                            <span class="a">b</span>
-                            <span class="a">b</span>
+                    <li>
+                        <a href="ATA%20101%20(6)-10-Berk%20Muammer%20Kuzu.pdf" target="_blank" rel="noopener">
+                            <div class="card-head">
+                                <span class="title">ATA 101 &mdash; Milli M&uuml;cadele</span>
+                                <span class="badge">PDF &middot; 4 MB</span>
+                            </div>
+                            <span class="desc">
+                                Mustafa Kemal Pa&#351;a'n&#305;n Samsun'a &#199;&#305;kmas&#305;, Genelgeler ve Kongreler ile Milli M&uuml;cadele.
+                                Click to view the PDF in a new tab.
+                            </span>
                         </a>
-                    </li>  -->
+                    </li>
+
+                    <!--
+                      Yeni not eklemek icin bu kalibi kopyala:
+
+                      <li>
+                          <a href="DOSYA_ADI.pdf" target="_blank" rel="noopener">
+                              <div class="card-head">
+                                  <span class="title">Baslik</span>
+                                  <span class="badge">PDF</span>
+                              </div>
+                              <span class="desc">Kisa aciklama.</span>
+                          </a>
+                      </li>
+                    -->
 
                 </ul>
             </section>
         </main>
 
+        <footer>
+            <div class="social-links">
+                <a href="https://github.com/BerkmKuzu1" target="_blank" rel="noopener" class="social-icon" title="GitHub Profile" aria-label="GitHub Profile">
+                    <i class="fab fa-github" aria-hidden="true"></i>
+                </a>
+
+                <a href="https://www.linkedin.com/in/berk-muammer-kuzu/" target="_blank" rel="noopener" class="social-icon" title="LinkedIn Profile" aria-label="LinkedIn Profile">
+                    <i class="fab fa-linkedin" aria-hidden="true"></i>
+                </a>
+            </div>
+            <p class="footer-note">berkkuzu.com &mdash; built with plain HTML, CSS and JavaScript.</p>
+        </footer>
     </div>
 
     <script src="script.js"></script>
 </body>
-
 </html>

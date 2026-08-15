@@ -1,22 +1,86 @@
-/* General Settings */
+/* ==========================================================================
+   berkkuzu.com — terminal theme
+   Tokens first, then layout, then components, then responsive.
+   ========================================================================== */
+
+:root {
+    --bg:            #050505;
+    --surface:       rgba(20, 20, 20, 0.72);
+    --surface-hover: rgba(255, 152, 0, 0.08);
+    --border:        rgba(255, 152, 0, 0.22);
+
+    --accent:        #ff9800;
+    --accent-soft:   rgba(255, 152, 0, 0.35);
+    --accent-glow:   rgba(255, 152, 0, 0.55);
+
+    --text:          #e6e6e6;
+    --text-dim:      #9a9a9a;
+    --text-strong:   #ffffff;
+
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", "Segoe UI Mono",
+            Menlo, Consolas, "Courier New", monospace;
+
+    --gutter: 50px;
+    --measure: min(62%, 980px);
+    --radius: 2px;
+    --speed: 0.28s;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
 body {
     margin: 0;
     padding: 0;
-    background-color: #050505;
-    color: #ff9800;
-    font-family: 'Courier New', Courier, monospace;
+    background-color: var(--bg);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 16px;
+    line-height: 1.6;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* Sadece Sağ Tarafta Kalan Animasyon Alanı */
+a { color: var(--accent); }
+
+img { max-width: 100%; }
+
+/* Keyboard users must be able to see where they are. */
+a:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+/* Skip link — hidden until focused. */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--accent);
+    color: #050505;
+    padding: 10px 16px;
+    z-index: 100;
+    text-decoration: none;
+    font-weight: bold;
+}
+.skip-link:focus {
+    left: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Background animation — pinned to the right third on desktop.
+   -------------------------------------------------------------------------- */
 #particleCanvas {
     position: fixed;
     top: 0;
-    right: 0; /* Sağa yasladık */
-    left: auto; /* Solu serbest bıraktık */
-    width: 30%; /* Ekranın sadece sağ %30'unu kaplayacak */
+    right: 0;
+    left: auto;
+    width: 30%;
     height: 100%;
     z-index: -1;
+    pointer-events: none;
 }
 
 .content-wrapper {
@@ -27,180 +91,498 @@ body {
     flex-direction: column;
 }
 
-/* Header */
+/* --------------------------------------------------------------------------
+   Header + navigation
+   -------------------------------------------------------------------------- */
 header {
     display: flex;
-    justify-content: flex-start; /* İsmi en sola yaslı tutar */
-    padding: 30px 50px;
+    flex-direction: column;
+    gap: 18px;
+    padding: 30px var(--gutter) 0;
 }
 
 .top-left h1 {
     margin: 0;
-    font-size: 3rem;
-    text-shadow: 0 0 15px rgba(255, 152, 0, 0.6);
+    font-size: clamp(1.9rem, 4.5vw, 3rem);
+    line-height: 1.15;
+    text-shadow: 0 0 15px var(--accent-glow);
     text-align: left;
+    letter-spacing: -0.5px;
 }
 
-/* Container (Liste Kısmı Sola Yaslandı) */
+.top-left h1 a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.tagline {
+    margin: 6px 0 0;
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+}
+
+.site-nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.site-nav a {
+    display: inline-block;
+    padding: 7px 14px;
+    color: var(--text-dim);
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: color var(--speed) ease,
+                border-color var(--speed) ease,
+                background-color var(--speed) ease;
+}
+
+.site-nav a:hover {
+    color: var(--accent);
+    border-color: var(--border);
+    background-color: var(--surface-hover);
+}
+
+.site-nav a[aria-current="page"] {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   Layout
+   -------------------------------------------------------------------------- */
 .container {
-    width: 60%; /* Sağ taraftaki animasyona yer bırakmak için genişliği kıstık */
-    margin: 20px 50px; /* İsmin hizasına, tam sola yasladık */
+    width: var(--measure);
+    margin: 30px var(--gutter);
     flex-grow: 1;
 }
 
+section + section { margin-top: 60px; }
+
 h2 {
-    font-size: 2.5rem;
-    border-bottom: 2px solid #ff9800;
+    font-size: clamp(1.5rem, 3.5vw, 2.5rem);
+    border-bottom: 2px solid var(--accent);
     padding-bottom: 10px;
-    margin-bottom: 30px;
+    margin: 0 0 12px;
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-/* List Style */
+h3 {
+    font-size: 1.15rem;
+    color: var(--text-strong);
+    margin: 0 0 8px;
+}
+
+.section-intro {
+    color: var(--text-dim);
+    margin: 0 0 26px;
+    font-size: 0.98rem;
+    max-width: 70ch;
+}
+
+/* --------------------------------------------------------------------------
+   Card list — the site's signature element
+   -------------------------------------------------------------------------- */
 .project-list {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
-.project-list li {
-    margin-bottom: 15px;
-}
+.project-list li { margin-bottom: 15px; }
 
-.project-list a {
+.project-list a,
+.project-list .card-static {
     display: flex;
     flex-direction: column;
     text-decoration: none;
-    background-color: rgba(20, 20, 20, 0.7);
+    background-color: var(--surface);
     padding: 20px;
-    border-left: 4px solid #ff9800;
-    transition: all 0.3s ease;
+    border-left: 4px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    transition: background-color var(--speed) ease,
+                transform var(--speed) ease,
+                box-shadow var(--speed) ease;
 }
 
-.project-list a:hover {
-    background-color: rgba(255, 152, 0, 0.1);
+.project-list a:hover,
+.project-list a:focus-visible {
+    background-color: var(--surface-hover);
     transform: translateX(15px);
     box-shadow: 0 0 15px rgba(255, 152, 0, 0.3);
 }
 
+/* Cards with no link of their own (private / unpublished work). */
+.project-list .card-static {
+    border-left-color: var(--text-dim);
+}
+
 .project-list .title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: bold;
-    color: #ffffff;
+    color: var(--text-strong);
     margin-bottom: 8px;
 }
 
 .project-list .desc {
-    font-size: 1.1rem;
-    color: #ff9800;
+    font-size: 1rem;
+    color: var(--accent);
 }
 
-/* Footer & LinkedIn Icon */
-/* Footer & Social Icons */
-footer {
-    padding: 30px 0;
-    margin-top: auto;
-}
+.project-list .card-static .desc { color: var(--text-dim); }
 
-.social-links {
+.card-head {
     display: flex;
-    justify-content: center;
-    gap: 30px; /* İkonlar arası boşluk */
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
-/* Footer & Social Icons */
-footer {
-    padding: 30px 0;
-    margin-top: auto;
+.card-head .title { margin-bottom: 0; }
+
+.badge {
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 9px;
+    white-space: nowrap;
 }
 
-.social-links {
+.badge-live {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Tech tags */
+.tags {
     display: flex;
-    justify-content: center;
-    gap: 30px; /* İkonlar arası boşluk */
+    flex-wrap: wrap;
+    gap: 7px;
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
 }
 
-.social-icon {
-    color: #ff9800;
-    font-size: 3rem;
-    transition: 0.3s;
-    text-decoration: none;
+.tags li {
+    margin: 0;
+    font-size: 0.78rem;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    background: rgba(255, 152, 0, 0.07);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px 9px;
 }
 
-.social-icon:hover {
-    color: #ffffff;
-    text-shadow: 0 0 20px #ff9800;
-    transform: translateY(-5px); 
+/* --------------------------------------------------------------------------
+   Activity — GitHub contribution graph
+   -------------------------------------------------------------------------- */
+.activity-panel {
+    background-color: var(--surface);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 22px;
 }
 
-/* About Me Sayfası Özel Tasarımı */
+/* The SVG is ~53 weeks wide; let it scroll instead of squashing the page. */
+.activity-graph {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-soft) transparent;
+}
+
+.activity-graph::-webkit-scrollbar { height: 8px; }
+.activity-graph::-webkit-scrollbar-track { background: transparent; }
+.activity-graph::-webkit-scrollbar-thumb {
+    background: var(--accent-soft);
+    border-radius: 4px;
+}
+
+.activity-graph img,
+.activity-graph svg {
+    display: block;
+    min-width: 700px;
+    width: 100%;
+    height: auto;
+}
+
+/* The graph is wider than a phone screen and scrolls; say so, because a
+   touch scrollbar is invisible until you already know to swipe. */
+.scroll-hint {
+    display: none;
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+}
+
+.activity-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.activity-foot a { color: var(--accent); }
+
+.activity-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.activity-legend i {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+/* --------------------------------------------------------------------------
+   About page
+   -------------------------------------------------------------------------- */
 .about-content {
-    background-color: rgba(20, 20, 20, 0.7);
+    background-color: var(--surface);
     padding: 40px;
-    border-left: 4px solid #ff9800;
-    text-align: center; /* Resmi ortalamak için */
+    border-left: 4px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    text-align: center;
 }
 
-/* Yuvarlak, Turuncu Parlamalı Profil Resmi */
 .profile-pic {
     width: 200px;
     height: 200px;
-    border-radius: 50%; /* Kare resmi tam yuvarlak yapar */
-    border: 3px solid #ff9800;
-    object-fit: cover; /* Resmin en-boy oranını bozmadan sığdırır */
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    object-fit: cover;
     margin-bottom: 30px;
-    box-shadow: 0 0 20px rgba(255, 152, 0, 0.5); /* Turuncu parlama efekti */
+    box-shadow: 0 0 20px var(--accent-soft);
 }
 
 .about-content p {
-    font-size: 1.15rem;
-    line-height: 1.8;
-    color: #e0e0e0;
-    text-align: justify; /* Yazıları iki yana yaslar (Gazete küpürü gibi) */
+    font-size: 1.05rem;
+    line-height: 1.85;
+    color: var(--text);
+    text-align: left;
     margin-bottom: 20px;
 }
 
-/* Mobile Optimization (Phones and Tablets) */
+.about-content p:last-child { margin-bottom: 0; }
+
+/* Skills */
+.skill-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 15px;
+}
+
+.skill-group {
+    background-color: var(--surface);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 20px;
+}
+
+.skill-group h3 {
+    font-size: 0.85rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+}
+
+.skill-group ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.skill-group li {
+    font-size: 0.82rem;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px 9px;
+}
+
+/* Timeline */
+.timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 22px;
+    border-left: 2px solid var(--border);
+}
+
+.timeline li {
+    position: relative;
+    padding: 0 0 28px 10px;
+}
+
+.timeline li:last-child { padding-bottom: 0; }
+
+.timeline li::before {
+    content: "";
+    position: absolute;
+    left: -29px;
+    top: 7px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.timeline .when {
+    display: block;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+
+.timeline .what {
+    display: block;
+    color: var(--text-strong);
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.timeline .where {
+    display: block;
+    color: var(--text);
+    font-size: 0.95rem;
+}
+
+/* --------------------------------------------------------------------------
+   Footer
+   -------------------------------------------------------------------------- */
+footer {
+    padding: 40px var(--gutter) 30px;
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 152, 0, 0.12);
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+}
+
+.social-icon {
+    color: var(--accent);
+    font-size: 2.4rem;
+    line-height: 1;
+    transition: color var(--speed) ease,
+                text-shadow var(--speed) ease,
+                transform var(--speed) ease;
+    text-decoration: none;
+    display: inline-flex;
+}
+
+.social-icon:hover {
+    color: var(--text-strong);
+    text-shadow: 0 0 20px var(--accent);
+    transform: translateY(-5px);
+}
+
+.footer-note {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin: 20px 0 0;
+    letter-spacing: 0.5px;
+}
+
+/* --------------------------------------------------------------------------
+   404
+   -------------------------------------------------------------------------- */
+.error-code {
+    font-size: clamp(4rem, 18vw, 9rem);
+    line-height: 1;
+    margin: 0;
+    color: var(--accent);
+    text-shadow: 0 0 30px var(--accent-glow);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
-    /* İsim alanını küçült ve ortala */
+    :root { --gutter: 20px; }
+
     header {
-        padding: 20px;
-        justify-content: center;
+        padding: 20px var(--gutter) 0;
+        align-items: center;
     }
 
-    .top-left h1 {
-        font-size: 1.8rem; /* Mobilde yazı çok büyük olmasın */
-        text-align: center;
-    }
+    .top-left { text-align: center; }
+    .top-left h1 { text-align: center; }
+    .tagline { text-align: center; }
 
-    /* Listeyi ekranın tamamına yay */
+    .site-nav ul { justify-content: center; }
+
     .container {
-        width: 90%; 
-        margin: 10px auto;
+        width: auto;
+        margin: 20px var(--gutter);
     }
 
-    h2 {
-        font-size: 1.8rem;
-        text-align: center;
-    }
+    h2 { text-align: center; }
+    .section-intro { text-align: center; }
 
-    /* Proje listesi efektini mobilde azalt (parmakla basarken kaymasın) */
-    .project-list a:hover {
-        transform: translateX(5px); 
-    }
+    .project-list a:hover { transform: translateX(5px); }
+    .project-list .title { font-size: 1.1rem; }
 
-    .project-list .title {
-        font-size: 1.2rem;
-    }
+    .about-content { padding: 24px; }
+    .profile-pic { width: 150px; height: 150px; }
 
-    /* Mobilde noktalar sadece sağda değil, tüm arka planda yavaşça aksın */
     #particleCanvas {
         width: 100%;
-        opacity: 0.2; /* Yazıların okunması için daha saydam yaptık */
+        opacity: 0.2;
     }
 
-    /* İkonları biraz daha küçült */
-    .social-icon {
-        font-size: 2.5rem;
+    .social-icon { font-size: 2rem; }
+
+    .activity-foot { justify-content: center; }
+    .scroll-hint { display: block; }
+}
+
+/* Respect the OS "reduce motion" setting — the JS also stops the canvas loop. */
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
+
+    .project-list a:hover,
+    .social-icon:hover { transform: none; }
+
+    #particleCanvas { display: none; }
 }

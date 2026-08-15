@@ -3,51 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notes - Berk Muammer KUZU</title>
+
+    <title>Projects &mdash; Berk Muammer KUZU</title>
+    <meta name="description" content="FPGA and embedded projects by Berk Muammer Kuzu: a PolarFire flight data recorder, a TEKNOFEST MCU architecture, RISC-V study work, and Verilog/VHDL RTL exercises.">
+    <link rel="canonical" href="https://berkkuzu.com/projects.html">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="berkkuzu.com">
+    <meta property="og:title" content="Projects &mdash; Berk Muammer KUZU">
+    <meta property="og:description" content="FPGA and embedded projects: PolarFire flight data recorder, TEKNOFEST MCU architecture, RISC-V study work, Verilog/VHDL RTL.">
+    <meta property="og:url" content="https://berkkuzu.com/projects.html">
+    <meta property="og:image" content="https://berkkuzu.com/Berk_Muammer_Kuzu.png">
+    <meta name="twitter:card" content="summary">
+
+    <meta name="theme-color" content="#050505">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    
-    <canvas id="particleCanvas"></canvas>
+
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <canvas id="particleCanvas" aria-hidden="true"></canvas>
 
     <div class="content-wrapper">
         <header>
             <div class="top-left">
-                <h1><a href="index.html" style="color: inherit; text-decoration: none;">Berk Muammer KUZU</a></h1>
+                <h1><a href="index.html">Berk Muammer KUZU</a></h1>
+                <p class="tagline">Digital design &middot; FPGA / RTL &middot; Embedded systems &middot; Ankara, T&uuml;rkiye</p>
             </div>
+
+            <nav class="site-nav" aria-label="Main">
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="projects.html" aria-current="page">Projects</a></li>
+                    <li><a href="notes.html">Notes</a></li>
+                    <li><a href="about.html">About</a></li>
+                </ul>
+            </nav>
         </header>
 
-        <main class="container">
-            <section id="notes">
-                <h2>Notes & Files</h2>
-                
+        <main class="container" id="main">
+            <section id="projects">
+                <h2>Projects</h2>
+                <p class="section-intro">
+                    Hardware first &mdash; RTL and embedded work I have written myself.
+                    Every card links to a public repository.
+                </p>
+
                 <ul class="project-list">
-                    
-                    <!-- <li>
-                        <a href="a" target="_blank">
-                            <span class="a">Signals and Systems Notes (PDF)</span>
-                            <span class="desc">Click to view the PDF file in a new tab.</span>
+
+                    <li>
+                        <a href="https://github.com/BerkmKuzu1/Verilog" target="_blank" rel="noopener">
+                            <div class="card-head">
+                                <span class="title">Verilog</span>
+                                <span class="badge badge-live">Public repo</span>
+                            </div>
+                            <span class="desc">
+                                Verilog RTL work: finite state machine examples, general digital-design
+                                exercises, and a UART-driven LED project targeting the Digilent Basys 3
+                                board.
+                            </span>
+                            <ul class="tags">
+                                <li>Verilog</li>
+                                <li>FSM</li>
+                                <li>UART</li>
+                                <li>Basys 3</li>
+                                <li>Vivado</li>
+                            </ul>
                         </a>
                     </li>
 
                     <li>
-                        <a href="a" target="_blank">
-                            <span class="a">Hardware Architecture Diagram (Image)</span>
-                            <span class="desc">Click to view the diagram full size in a new tab.</span>
+                        <a href="https://github.com/BerkmKuzu1/VHDL" target="_blank" rel="noopener">
+                            <div class="card-head">
+                                <span class="title">VHDL</span>
+                                <span class="badge badge-live">Public repo</span>
+                            </div>
+                            <span class="desc">
+                                VHDL fundamentals built up from gates to datapaths: logic gates,
+                                full adder and a 4-bit ripple-carry adder, multiplexers,
+                                decoder/encoder, D flip-flop, clock-division techniques, FSM examples
+                                and button-controlled LED projects.
+                            </span>
+                            <ul class="tags">
+                                <li>VHDL</li>
+                                <li>Combinational logic</li>
+                                <li>Sequential logic</li>
+                                <li>FSM</li>
+                                <li>FPGA</li>
+                            </ul>
+                        </a>
+                    </li>
+
+                    <!-- TODO (Berk): NFC projesinin ne yaptığını 1-2 cümleyle yaz (hangi kart, hangi MCU, ne okuyor). -->
+                    <li>
+                        <a href="https://github.com/BerkmKuzu1/Nfc-System-Project" target="_blank" rel="noopener">
+                            <div class="card-head">
+                                <span class="title">NFC System Project</span>
+                                <span class="badge badge-live">Public repo</span>
+                            </div>
+                            <span class="desc">
+                                Embedded C++ coursework project built with Muhammed Bucak &mdash; an
+                                NFC-based identification and access system.
+                            </span>
+                            <ul class="tags">
+                                <li>C++</li>
+                                <li>Embedded</li>
+                                <li>NFC / RFID</li>
+                            </ul>
                         </a>
                     </li>
 
                     <li>
-                        <a href="a" target="_blank">
-                            <span class="a">Term Project Report (Word)</span>
-                            <span class="desc">Click to download the .docx file.</span>
+                        <a href="https://github.com/BerkmKuzu1/berkkuzu.com" target="_blank" rel="noopener">
+                            <div class="card-head">
+                                <span class="title">berkkuzu.com</span>
+                                <span class="badge badge-live">This site</span>
+                            </div>
+                            <span class="desc">
+                                This website. No framework and no build step &mdash; plain HTML, CSS and
+                                one canvas animation, served from GitHub Pages. A scheduled GitHub
+                                Action regenerates the contribution graph on the home page every day.
+                            </span>
+                            <ul class="tags">
+                                <li>HTML</li>
+                                <li>CSS</li>
+                                <li>JavaScript</li>
+                                <li>GitHub Actions</li>
+                                <li>GitHub Pages</li>
+                            </ul>
                         </a>
-                    </li> -->
+                    </li>
 
                 </ul>
             </section>
         </main>
 
+        <footer>
+            <div class="social-links">
+                <a href="https://github.com/BerkmKuzu1" target="_blank" rel="noopener" class="social-icon" title="GitHub Profile" aria-label="GitHub Profile">
+                    <i class="fab fa-github" aria-hidden="true"></i>
+                </a>
+
+                <a href="https://www.linkedin.com/in/berk-muammer-kuzu/" target="_blank" rel="noopener" class="social-icon" title="LinkedIn Profile" aria-label="LinkedIn Profile">
+                    <i class="fab fa-linkedin" aria-hidden="true"></i>
+                </a>
+            </div>
+            <p class="footer-note">berkkuzu.com &mdash; built with plain HTML, CSS and JavaScript.</p>
+        </footer>
     </div>
 
     <script src="script.js"></script>
