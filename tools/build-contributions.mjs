@@ -23,10 +23,19 @@ const OUT_DIR = resolve(ROOT, "assets");
 const LOGIN = process.env.GH_LOGIN || "BerkmKuzu1";
 const TOKEN = process.env.GITHUB_TOKEN;
 
-/* Theme — must stay in step with the --accent ramp in style.css. */
-const EMPTY = "#161b22";
-const RAMP = ["#5c3a05", "#a35f02", "#ff9800", "#ffc166"];
-const LABEL = "#9a9a9a";
+/* The cells carry classes rather than baked-in fills. The page inlines this
+   SVG and colours the classes from its own theme tokens; the <style> block
+   below is the fallback for when the SVG is loaded as a plain <img>. */
+const CELL_STYLE = [
+  'text{font-family:ui-monospace,SFMono-Regular,Consolas,"Courier New",monospace;',
+  "font-size:9px;fill:#69727f}",
+  ".c0{fill:#1a2029}.c1{fill:#5c3a05}.c2{fill:#a35f02}",
+  ".c3{fill:#f59410}.c4{fill:#ffc166}",
+  "@media(prefers-color-scheme:light){",
+  "text{fill:#7b8492}",
+  ".c0{fill:#e8ecf1}.c1{fill:#ffd9a0}.c2{fill:#f7ad4b}",
+  ".c3{fill:#d97d05}.c4{fill:#9c5600}}",
+].join("");
 
 /* Geometry, in SVG user units. */
 const CELL = 11;
@@ -151,10 +160,7 @@ function buildSvg(calendar) {
       `viewBox="0 0 ${width} ${height}" role="img" ` +
       `aria-label="${calendar.totalContributions} GitHub contributions by ${LOGIN} in the last year">`
   );
-  parts.push(
-    `<style>text{font-family:ui-monospace,SFMono-Regular,Consolas,"Courier New",monospace;` +
-      `font-size:9px;fill:${LABEL}}</style>`
-  );
+  parts.push(`<style>${CELL_STYLE}</style>`);
 
   for (const label of monthLabels(weeks)) {
     parts.push(
@@ -172,13 +178,12 @@ function buildSvg(calendar) {
   weeks.forEach((week, w) => {
     for (const day of week.contributionDays) {
       const level = levelOf(day.contributionCount);
-      const fill = level === 0 ? EMPTY : RAMP[level - 1];
       const x = PAD_LEFT + w * STEP;
       const y = PAD_TOP + day.weekday * STEP;
       const plural = day.contributionCount === 1 ? "" : "s";
 
       parts.push(
-        `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" ry="2" fill="${fill}">` +
+        `<rect class="c${level}" x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2" ry="2">` +
           `<title>${day.contributionCount} contribution${plural} on ${day.date}</title>` +
           `</rect>`
       );

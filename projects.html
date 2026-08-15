@@ -1,161 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Projects &mdash; Berk Muammer KUZU</title>
-    <meta name="description" content="FPGA and embedded projects by Berk Muammer Kuzu: a PolarFire flight data recorder, a TEKNOFEST MCU architecture, RISC-V study work, and Verilog/VHDL RTL exercises.">
-    <link rel="canonical" href="https://berkkuzu.com/projects.html">
+<title>Projects — Berk Muammer Kuzu</title>
+<meta name="description" content="FPGA and embedded projects by Berk Muammer Kuzu: Verilog and VHDL RTL work, an NFC access system, and a TEKNOFEST MCU architecture.">
+<link rel="canonical" href="https://berkkuzu.com/projects.html">
 
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="berkkuzu.com">
-    <meta property="og:title" content="Projects &mdash; Berk Muammer KUZU">
-    <meta property="og:description" content="FPGA and embedded projects: PolarFire flight data recorder, TEKNOFEST MCU architecture, RISC-V study work, Verilog/VHDL RTL.">
-    <meta property="og:url" content="https://berkkuzu.com/projects.html">
-    <meta property="og:image" content="https://berkkuzu.com/Berk_Muammer_Kuzu.png">
-    <meta name="twitter:card" content="summary">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="berkkuzu.com">
+<meta property="og:title" content="Projects — Berk Muammer Kuzu">
+<meta property="og:description" content="Verilog and VHDL RTL work, an NFC access system, and a TEKNOFEST MCU architecture.">
+<meta property="og:url" content="https://berkkuzu.com/projects.html">
+<meta property="og:image" content="https://berkkuzu.com/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
 
-    <meta name="theme-color" content="#050505">
-    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b0d11" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
 
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+<script>try{var t=localStorage.getItem("theme");if(t){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
 </head>
 <body>
 
-    <a class="skip-link" href="#main">Skip to content</a>
+<a class="skip-link" href="#main">Skip to content</a>
 
-    <canvas id="particleCanvas" aria-hidden="true"></canvas>
+<header class="site-header">
+    <div class="container header-inner">
+        <a class="brand" href="index.html">
+            <img src="assets/badger.png" alt="Ostim BLogic" height="26">
+            <span class="brand-name">Berk M. Kuzu</span>
+        </a>
 
-    <div class="content-wrapper">
-        <header>
-            <div class="top-left">
-                <h1><a href="index.html">Berk Muammer KUZU</a></h1>
-                <p class="tagline">Digital design &middot; FPGA / RTL &middot; Embedded systems &middot; Ankara, T&uuml;rkiye</p>
-            </div>
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="log.html">Log</a></li>
+                <li><a href="projects.html" aria-current="page">Projects</a></li>
+                <li><a href="notes.html">Notes</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+        </nav>
 
-            <nav class="site-nav" aria-label="Main">
-                <ul>
-                    <li><a href="index.html">Home</a></li>
-                    <li><a href="projects.html" aria-current="page">Projects</a></li>
-                    <li><a href="notes.html">Notes</a></li>
-                    <li><a href="about.html">About</a></li>
-                </ul>
-            </nav>
-        </header>
+        <button type="button" class="icon-btn theme-toggle" aria-label="Switch theme">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+        </button>
 
-        <main class="container" id="main">
-            <section id="projects">
-                <h2>Projects</h2>
-                <p class="section-intro">
-                    Hardware first &mdash; RTL and embedded work I have written myself.
-                    Every card links to a public repository.
-                </p>
-
-                <ul class="project-list">
-
-                    <li>
-                        <a href="https://github.com/BerkmKuzu1/Verilog" target="_blank" rel="noopener">
-                            <div class="card-head">
-                                <span class="title">Verilog</span>
-                                <span class="badge badge-live">Public repo</span>
-                            </div>
-                            <span class="desc">
-                                Verilog RTL work: finite state machine examples, general digital-design
-                                exercises, and a UART-driven LED project targeting the Digilent Basys 3
-                                board.
-                            </span>
-                            <ul class="tags">
-                                <li>Verilog</li>
-                                <li>FSM</li>
-                                <li>UART</li>
-                                <li>Basys 3</li>
-                                <li>Vivado</li>
-                            </ul>
-                        </a>
-                    </li>
-
-                    <li>
-                        <a href="https://github.com/BerkmKuzu1/VHDL" target="_blank" rel="noopener">
-                            <div class="card-head">
-                                <span class="title">VHDL</span>
-                                <span class="badge badge-live">Public repo</span>
-                            </div>
-                            <span class="desc">
-                                VHDL fundamentals built up from gates to datapaths: logic gates,
-                                full adder and a 4-bit ripple-carry adder, multiplexers,
-                                decoder/encoder, D flip-flop, clock-division techniques, FSM examples
-                                and button-controlled LED projects.
-                            </span>
-                            <ul class="tags">
-                                <li>VHDL</li>
-                                <li>Combinational logic</li>
-                                <li>Sequential logic</li>
-                                <li>FSM</li>
-                                <li>FPGA</li>
-                            </ul>
-                        </a>
-                    </li>
-
-                    <!-- TODO (Berk): NFC projesinin ne yaptığını 1-2 cümleyle yaz (hangi kart, hangi MCU, ne okuyor). -->
-                    <li>
-                        <a href="https://github.com/BerkmKuzu1/Nfc-System-Project" target="_blank" rel="noopener">
-                            <div class="card-head">
-                                <span class="title">NFC System Project</span>
-                                <span class="badge badge-live">Public repo</span>
-                            </div>
-                            <span class="desc">
-                                Embedded C++ coursework project built with Muhammed Bucak &mdash; an
-                                NFC-based identification and access system.
-                            </span>
-                            <ul class="tags">
-                                <li>C++</li>
-                                <li>Embedded</li>
-                                <li>NFC / RFID</li>
-                            </ul>
-                        </a>
-                    </li>
-
-                    <li>
-                        <a href="https://github.com/BerkmKuzu1/berkkuzu.com" target="_blank" rel="noopener">
-                            <div class="card-head">
-                                <span class="title">berkkuzu.com</span>
-                                <span class="badge badge-live">This site</span>
-                            </div>
-                            <span class="desc">
-                                This website. No framework and no build step &mdash; plain HTML, CSS and
-                                one canvas animation, served from GitHub Pages. A scheduled GitHub
-                                Action regenerates the contribution graph on the home page every day.
-                            </span>
-                            <ul class="tags">
-                                <li>HTML</li>
-                                <li>CSS</li>
-                                <li>JavaScript</li>
-                                <li>GitHub Actions</li>
-                                <li>GitHub Pages</li>
-                            </ul>
-                        </a>
-                    </li>
-
-                </ul>
-            </section>
-        </main>
-
-        <footer>
-            <div class="social-links">
-                <a href="https://github.com/BerkmKuzu1" target="_blank" rel="noopener" class="social-icon" title="GitHub Profile" aria-label="GitHub Profile">
-                    <i class="fab fa-github" aria-hidden="true"></i>
-                </a>
-
-                <a href="https://www.linkedin.com/in/berk-muammer-kuzu/" target="_blank" rel="noopener" class="social-icon" title="LinkedIn Profile" aria-label="LinkedIn Profile">
-                    <i class="fab fa-linkedin" aria-hidden="true"></i>
-                </a>
-            </div>
-            <p class="footer-note">berkkuzu.com &mdash; built with plain HTML, CSS and JavaScript.</p>
-        </footer>
+        <button type="button" class="icon-btn nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="site-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
     </div>
+</header>
 
-    <script src="script.js"></script>
+<main id="main">
+
+    <section class="page-head">
+        <div class="container">
+            <span class="eyebrow">Work</span>
+            <h1>Projects</h1>
+            <p class="section-intro">
+                Hardware first — RTL and embedded work I have written myself.
+                Every card with a repo badge links to public source.
+            </p>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <ul class="card-grid">
+
+                <li>
+                    <a class="card" href="https://github.com/BerkmKuzu1/Verilog" target="_blank" rel="noopener">
+                        <div class="card-head">
+                            <h3>Verilog</h3>
+                            <span class="badge badge-accent">Repo</span>
+                        </div>
+                        <p>
+                            Verilog RTL work: finite state machine examples, general
+                            digital-design exercises, and a UART-driven LED project
+                            targeting the Digilent Basys 3 board.
+                        </p>
+                        <ul class="tags">
+                            <li>Verilog</li><li>FSM</li><li>UART</li><li>Basys 3</li><li>Vivado</li>
+                        </ul>
+                    </a>
+                </li>
+
+                <li>
+                    <a class="card" href="https://github.com/BerkmKuzu1/VHDL" target="_blank" rel="noopener">
+                        <div class="card-head">
+                            <h3>VHDL</h3>
+                            <span class="badge badge-accent">Repo</span>
+                        </div>
+                        <p>
+                            VHDL fundamentals built up from gates to datapaths: logic
+                            gates, a full adder and 4-bit ripple-carry adder, multiplexers,
+                            decoder/encoder, D flip-flop, clock division, FSM examples and
+                            button-controlled LED projects.
+                        </p>
+                        <ul class="tags">
+                            <li>VHDL</li><li>Combinational logic</li><li>Sequential logic</li><li>FSM</li><li>FPGA</li>
+                        </ul>
+                    </a>
+                </li>
+
+                <li>
+                    <a class="card" href="https://github.com/BerkmKuzu1/Nfc-System-Project" target="_blank" rel="noopener">
+                        <div class="card-head">
+                            <h3>NFC System Project</h3>
+                            <span class="badge badge-accent">Repo</span>
+                        </div>
+                        <p>
+                            Embedded C++ coursework project built with Muhammed Bucak —
+                            an NFC-based identification and access system.
+                        </p>
+                        <ul class="tags">
+                            <li>C++</li><li>Embedded</li><li>NFC / RFID</li>
+                        </ul>
+                    </a>
+                </li>
+
+                <!-- TODO (Berk): yarisma sonrasi repo public olunca burayi <a class="card" href="..."> yap. -->
+                <li>
+                    <div class="card">
+                        <div class="card-head">
+                            <h3>MCU architecture</h3>
+                            <span class="badge">2026 finalist</span>
+                        </div>
+                        <p>
+                            Our own MCU for the TEKNOFEST Chip Design competition, designed
+                            with the Ostim BLogic Microelectronics team I founded and
+                            captain. Passed the ÖTR preliminary design report stage. My role
+                            is RTL design and FPGA prototyping on a Genesys 2 (Kintex-7).
+                            Source is not public yet.
+                        </p>
+                        <ul class="tags">
+                            <li>RTL</li><li>MCU</li><li>Chip design</li><li>Genesys 2</li><li>TEKNOFEST</li>
+                        </ul>
+                    </div>
+                </li>
+
+                <li>
+                    <a class="card" href="https://github.com/BerkmKuzu1/berkkuzu.com" target="_blank" rel="noopener">
+                        <div class="card-head">
+                            <h3>berkkuzu.com</h3>
+                            <span class="badge badge-accent">This site</span>
+                        </div>
+                        <p>
+                            No framework and no build step — plain HTML, CSS and JavaScript
+                            on GitHub Pages. The learning log renders from a JSON file, and
+                            a scheduled GitHub Action regenerates the contribution graph
+                            every day.
+                        </p>
+                        <ul class="tags">
+                            <li>HTML</li><li>CSS</li><li>JavaScript</li><li>GitHub Actions</li><li>GitHub Pages</li>
+                        </ul>
+                    </a>
+                </li>
+
+            </ul>
+        </div>
+    </section>
+
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <p class="footer-note">&copy; 2026 Berk Muammer Kuzu &middot; plain HTML, CSS and JS</p>
+        <div class="social-links">
+            <a href="https://github.com/BerkmKuzu1" target="_blank" rel="noopener" aria-label="GitHub">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.9-.01 3.29 0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/berk-muammer-kuzu/" target="_blank" rel="noopener" aria-label="LinkedIn">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM9 9h3.8v1.64h.05c.53-.95 1.83-1.95 3.76-1.95 4.02 0 4.76 2.5 4.76 5.76V21h-4v-5.6c0-1.34-.02-3.06-1.9-3.06-1.9 0-2.19 1.46-2.19 2.96V21H9z"/></svg>
+            </a>
+        </div>
+    </div>
+</footer>
+
+<script src="script.js"></script>
 </body>
 </html>

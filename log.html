@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Notes &amp; Files — Berk Muammer Kuzu</title>
-<meta name="description" content="Lecture notes, cheat sheets and documentation collected by Berk Muammer Kuzu: digital design, electromagnetic theory and more.">
-<link rel="canonical" href="https://berkkuzu.com/notes.html">
+<title>Learning Log — Berk Muammer Kuzu</title>
+<meta name="description" content="Short write-ups on digital design, FPGA, RTL and embedded systems — things Berk Muammer Kuzu worked out and wanted to remember.">
+<link rel="canonical" href="https://berkkuzu.com/log.html">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="berkkuzu.com">
-<meta property="og:title" content="Notes &amp; Files — Berk Muammer Kuzu">
-<meta property="og:description" content="Lecture notes, cheat sheets and documentation: digital design, electromagnetic theory and more.">
-<meta property="og:url" content="https://berkkuzu.com/notes.html">
+<meta property="og:title" content="Learning Log — Berk Muammer Kuzu">
+<meta property="og:description" content="Short write-ups on digital design, FPGA, RTL and embedded systems.">
+<meta property="og:url" content="https://berkkuzu.com/log.html">
 <meta property="og:image" content="https://berkkuzu.com/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 
@@ -38,9 +38,9 @@
         <nav class="site-nav" id="site-nav" aria-label="Main">
             <ul>
                 <li><a href="index.html">Home</a></li>
-                <li><a href="log.html">Log</a></li>
+                <li><a href="log.html" aria-current="page">Log</a></li>
                 <li><a href="projects.html">Projects</a></li>
-                <li><a href="notes.html" aria-current="page">Notes</a></li>
+                <li><a href="notes.html">Notes</a></li>
                 <li><a href="about.html">About</a></li>
             </ul>
         </nav>
@@ -60,72 +60,60 @@
 
     <section class="page-head">
         <div class="container">
-            <span class="eyebrow">Reference</span>
-            <h1>Notes &amp; files</h1>
+            <span class="eyebrow">Learning log</span>
+            <h1>Things I worked out</h1>
             <p class="section-intro">
-                Lecture notes, cheat sheets and documentation I keep coming back to.
-                Everything opens in a new tab. Shorter write-ups live in the
-                <a href="log.html">log</a>.
+                Notes to my future self: RTL patterns, timing traps, toolchain
+                behaviour and the occasional mistake that cost me an afternoon.
+                Written down so I only have to learn them once.
             </p>
         </div>
     </section>
 
     <section class="section">
         <div class="container">
-            <ul class="card-grid">
 
-                <li>
-                    <a class="card" href="digital_design_cheat_sheet_senol_gulgonul_2025.pdf" target="_blank" rel="noopener">
-                        <div class="card-head">
-                            <h3>Digital Design cheat sheet</h3>
-                            <span class="badge">PDF &middot; 13 MB</span>
-                        </div>
-                        <p>Final 2025. Lecturer: Şenol Gülgönül.</p>
-                        <ul class="tags"><li>Digital design</li><li>Exam</li></ul>
-                    </a>
-                </li>
+            <div class="log-controls">
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+                    <label class="skip-link" for="log-search">Search the log</label>
+                    <input type="search" id="log-search" placeholder="Search entries…" autocomplete="off">
+                </div>
 
-                <li>
-                    <a class="card" href="https://drive.google.com/file/d/1s8J8oMdS20lcv5a4fG-ATYrxhXVnBCfq/view?usp=sharing" target="_blank" rel="noopener">
-                        <div class="card-head">
-                            <h3>Electromagnetic Theory notes</h3>
-                            <span class="badge">Drive</span>
-                        </div>
-                        <p>Full course notes, hosted on Google Drive.</p>
-                        <ul class="tags"><li>EM theory</li></ul>
-                    </a>
-                </li>
+                <ul class="chips" id="log-tags"></ul>
 
-                <li>
-                    <a class="card" href="ATA%20101%20(6)-10-Berk%20Muammer%20Kuzu.pdf" target="_blank" rel="noopener">
-                        <div class="card-head">
-                            <h3>ATA 101 — Milli Mücadele</h3>
-                            <span class="badge">PDF &middot; 4 MB</span>
-                        </div>
-                        <p>
-                            Mustafa Kemal Paşa'nın Samsun'a Çıkması, Genelgeler ve
-                            Kongreler ile Milli Mücadele.
-                        </p>
-                        <ul class="tags"><li>ATA 101</li></ul>
-                    </a>
-                </li>
-
-            </ul>
+                <span class="badge" id="log-count"></span>
+            </div>
 
             <!--
-              Yeni dosya eklemek icin bu kalibi kopyala (PDF'i repo koküne koy):
+              ==========================================================
+              YENI KAYIT EKLEMEK ICIN  →  assets/log.json dosyasini ac ve
+              "entries" listesinin BASINA su blogu ekle:
 
-              <li>
-                  <a class="card" href="DOSYA_ADI.pdf" target="_blank" rel="noopener">
-                      <div class="card-head">
-                          <h3>Baslik</h3>
-                          <span class="badge">PDF</span>
-                      </div>
-                      <p>Kisa aciklama.</p>
-                      <ul class="tags"><li>Etiket</li></ul>
-                  </a>
-              </li>
+              {
+                "id": "kisa-slug-adres-icin",
+                "date": "2026-08-20",
+                "title": "Baslik",
+                "tags": ["Verilog", "FPGA"],
+                "summary": "Tek cumlelik ozet. Anasayfada bu gorunur.",
+                "body": [
+                  "Duz paragraf. `kod`, **kalin** ve [link](https://ornek.com) calisir.",
+                  { "lang": "verilog", "code": "assign y = a & b;" },
+                  { "list": ["madde bir", "madde iki"] }
+                ],
+                "links": [ { "label": "Repo", "url": "https://github.com/..." } ]
+              }
+
+              - "id" adres cubugunda kullanilir: log.html#kisa-slug-adres-icin
+              - "date" YYYY-AA-GG. Sirala diye ugrasma, sayfa kendi siralar.
+              - "body", "links" ve "tags" istege bagli; sadece summary da yeterli.
+              ==========================================================
             -->
+
+            <ul class="log-list" id="log-list">
+                <li class="log-entry"><p class="muted">Loading&hellip;</p></li>
+            </ul>
+
         </div>
     </section>
 
