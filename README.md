@@ -131,6 +131,11 @@ whole Activity section rather than leaving a broken image on the page.
 Adding a note or a project means copying an existing `<li>` block — each page
 has a commented template next to its list showing the shape.
 
+After changing `style.css`, update `?v=...` in the stylesheet link on every
+HTML page, including `404.html`. Use a new release version or the commit that
+changed the CSS. This makes browsers fetch the updated stylesheet instead of
+reusing cached styles with newly published HTML.
+
 ## Local preview
 
 Any static server works — the log fetches `assets/log.json`, so opening the
