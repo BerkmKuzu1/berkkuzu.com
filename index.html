@@ -130,7 +130,52 @@
                 <a class="link-more" href="projects.html">All projects &rarr;</a>
             </div>
 
-            <ul class="card-grid">
+            <ul class="card-grid project-grid">
+                <li class="project-wide">
+                    <a class="card project-featured" href="https://github.com/BerkmKuzu1/BLogic-MCU" target="_blank" rel="noopener">
+                        <div class="project-copy">
+                            <div class="card-head">
+                                <h3>BLogic MCU</h3>
+                                <span class="badge badge-accent">Featured</span>
+                            </div>
+                            <span class="project-subtitle mono">32-bit RISC-V SoC &middot; TEKNOFEST 2026</span>
+                            <p>
+                                Built with the BLogic Mikroelektronik team: a CV32E40P-based
+                                microcontroller with AXI4 interconnect, peripherals and a
+                                TinyConv keyword-spotting accelerator. Verified in simulation,
+                                running on Genesys 2, with a completed SKY130 RTL-to-GDS flow.
+                            </p>
+                            <dl class="project-results">
+                                <div><dt>Architecture</dt><dd>RV32IMC</dd></div>
+                                <div><dt>FPGA</dt><dd>50 MHz</dd></div>
+                                <div><dt>ASIC signoff</dt><dd>27 MHz</dd></div>
+                            </dl>
+                            <ul class="tags"><li>SystemVerilog</li><li>RISC-V</li><li>AXI4</li><li>SKY130</li><li>JTAG</li></ul>
+                            <span class="project-repo mono">View repository &rarr;</span>
+                        </div>
+                        <figure class="project-visual">
+                            <img src="assets/projects/blogic-asic-layout.jpg" alt="BLogic MCU ASIC physical layout on SKY130" width="2050" height="2200" loading="lazy" decoding="async">
+                            <figcaption>SKY130 &middot; GDS layout</figcaption>
+                        </figure>
+                    </a>
+                </li>
+
+                <li>
+                    <a class="card" href="https://github.com/BerkmKuzu1/8bitcounter-asic" target="_blank" rel="noopener">
+                        <div class="card-head">
+                            <h3>8-bit Counter ASIC</h3>
+                            <span class="badge badge-accent">Repo</span>
+                        </div>
+                        <img class="project-thumbnail" src="assets/projects/counter8-core.png" alt="Physical layout of the 100 by 100 micrometre counter core" width="1000" height="1000" loading="lazy" decoding="async">
+                        <p>
+                            A VHDL synchronous counter taken from simulation to SKY130 GDS
+                            with LibreLane. The core passes DRC, LVS and timing checks;
+                            the separate I/O pad ring is an educational experiment.
+                        </p>
+                        <ul class="tags"><li>VHDL</li><li>SKY130</li><li>LibreLane</li><li>RTL to GDS</li></ul>
+                    </a>
+                </li>
+
                 <li>
                     <a class="card" href="https://github.com/BerkmKuzu1/Verilog" target="_blank" rel="noopener">
                         <div class="card-head">
@@ -180,11 +225,9 @@
         <div class="container">
             <div class="section-head">
                 <div>
-                    <span class="eyebrow">Activity</span>
-                    <h2>Commits, last 12 months</h2>
+                    <h2>GitHub activity</h2>
                     <p class="section-intro">
-                        Rebuilt every day by a scheduled workflow in this repository,
-                        so there is no third-party tracker on the page.
+                        Contributions over the last 12 months, updated daily.
                     </p>
                 </div>
             </div>

@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>Projects — Berk Muammer Kuzu</title>
-<meta name="description" content="FPGA and embedded projects by Berk Muammer Kuzu: Verilog and VHDL RTL work, an NFC access system, and a TEKNOFEST MCU architecture.">
+<meta name="description" content="Hardware projects by Berk Muammer Kuzu: BLogic RISC-V MCU, SKY130 8-bit counter ASIC, FPGA RTL and embedded systems.">
 <link rel="canonical" href="https://berkkuzu.com/projects.html">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="berkkuzu.com">
 <meta property="og:title" content="Projects — Berk Muammer Kuzu">
-<meta property="og:description" content="Verilog and VHDL RTL work, an NFC access system, and a TEKNOFEST MCU architecture.">
+<meta property="og:description" content="BLogic RISC-V MCU, SKY130 8-bit counter ASIC, FPGA RTL and embedded systems.">
 <meta property="og:url" content="https://berkkuzu.com/projects.html">
 <meta property="og:image" content="https://berkkuzu.com/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -63,15 +63,60 @@
             <span class="eyebrow">Work</span>
             <h1>Projects</h1>
             <p class="section-intro">
-                Hardware first — RTL and embedded work I have written myself.
-                Every card with a repo badge links to public source.
+                RISC-V SoCs, ASIC physical design and FPGA / embedded projects.
+                Public source, implementation details and verification results.
             </p>
         </div>
     </section>
 
     <section class="section">
         <div class="container">
-            <ul class="card-grid">
+            <ul class="card-grid project-grid">
+
+                <li class="project-wide">
+                    <a class="card project-featured" href="https://github.com/BerkmKuzu1/BLogic-MCU" target="_blank" rel="noopener">
+                        <div class="project-copy">
+                            <div class="card-head">
+                                <h3>BLogic MCU</h3>
+                                <span class="badge badge-accent">Featured</span>
+                            </div>
+                            <span class="project-subtitle mono">32-bit RISC-V SoC &middot; TEKNOFEST 2026</span>
+                            <p>
+                                Built with the BLogic Mikroelektronik team: a CV32E40P-based
+                                microcontroller with AXI4 interconnect, peripherals and a
+                                TinyConv keyword-spotting accelerator. Verified in simulation,
+                                running on Genesys 2, with a completed SKY130 RTL-to-GDS flow.
+                            </p>
+                            <dl class="project-results">
+                                <div><dt>Architecture</dt><dd>RV32IMC</dd></div>
+                                <div><dt>FPGA</dt><dd>50 MHz</dd></div>
+                                <div><dt>ASIC signoff</dt><dd>27 MHz</dd></div>
+                            </dl>
+                            <ul class="tags"><li>SystemVerilog</li><li>RISC-V</li><li>AXI4</li><li>SKY130</li><li>JTAG</li></ul>
+                            <span class="project-repo mono">View repository &rarr;</span>
+                        </div>
+                        <figure class="project-visual">
+                            <img src="assets/projects/blogic-asic-layout.jpg" alt="BLogic MCU ASIC physical layout on SKY130" width="2050" height="2200" loading="lazy" decoding="async">
+                            <figcaption>SKY130 &middot; GDS layout</figcaption>
+                        </figure>
+                    </a>
+                </li>
+
+                <li>
+                    <a class="card" href="https://github.com/BerkmKuzu1/8bitcounter-asic" target="_blank" rel="noopener">
+                        <div class="card-head">
+                            <h3>8-bit Counter ASIC</h3>
+                            <span class="badge badge-accent">Repo</span>
+                        </div>
+                        <img class="project-thumbnail" src="assets/projects/counter8-core.png" alt="Physical layout of the 100 by 100 micrometre counter core" width="1000" height="1000" loading="lazy" decoding="async">
+                        <p>
+                            A VHDL synchronous counter taken from simulation to SKY130 GDS
+                            with LibreLane. The core passes DRC, LVS and timing checks;
+                            the separate I/O pad ring is an educational experiment.
+                        </p>
+                        <ul class="tags"><li>VHDL</li><li>SKY130</li><li>LibreLane</li><li>RTL to GDS</li></ul>
+                    </a>
+                </li>
 
                 <li>
                     <a class="card" href="https://github.com/BerkmKuzu1/Verilog" target="_blank" rel="noopener">
@@ -124,27 +169,7 @@
                     </a>
                 </li>
 
-                <!-- TODO (Berk): yarisma sonrasi repo public olunca burayi <a class="card" href="..."> yap. -->
-                <li>
-                    <div class="card">
-                        <div class="card-head">
-                            <h3>MCU architecture</h3>
-                            <span class="badge">2026 finalist</span>
-                        </div>
-                        <p>
-                            Our own MCU for the TEKNOFEST Chip Design competition, designed
-                            with the Ostim BLogic Microelectronics team I founded and
-                            captain. Passed the ÖTR preliminary design report stage. My role
-                            is RTL design and FPGA prototyping on a Genesys 2 (Kintex-7).
-                            Source is not public yet.
-                        </p>
-                        <ul class="tags">
-                            <li>RTL</li><li>MCU</li><li>Chip design</li><li>Genesys 2</li><li>TEKNOFEST</li>
-                        </ul>
-                    </div>
-                </li>
-
-                <li>
+                <li class="project-wide">
                     <a class="card" href="https://github.com/BerkmKuzu1/berkkuzu.com" target="_blank" rel="noopener">
                         <div class="card-head">
                             <h3>berkkuzu.com</h3>
