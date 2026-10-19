@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>SerDes on an FPGA — Berk Muammer Kuzu</title>
+<meta name="description" content="A hands-on, interactive course on SerDes: shift registers, the Artix-7 OSERDESE2/ISERDESE2/IDELAYE2, eye scans, word alignment, PRBS, FIFOs between clocks and GTP transceivers, with every test result from the Serdes Practice labs.">
+<link rel="canonical" href="https://berkkuzu.com/serdes.html">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="berkkuzu.com">
+<meta property="og:title" content="SerDes on an FPGA — a hands-on course">
+<meta property="og:description" content="Learn SerDes step by step on the ALINX AX7101 (Artix-7): interactive lessons and the results of every lab test.">
+<meta property="og:url" content="https://berkkuzu.com/serdes.html">
+<meta property="og:image" content="https://berkkuzu.com/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<meta name="theme-color" content="#0b0d11" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
+
+<link rel="stylesheet" href="style.css?v=e6a113c">
+<script>try{var t=localStorage.getItem("theme");if(t){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
+
+<style>
+/* --------------------------------------------------------------------------
+   SerDes course. Uses the site's tokens from style.css and adds a few
+   colours for diagrams. Layout: chapter list on the left, one screen at a
+   time on the right; each screen shows an interactive figure first, then
+   the notes.
+   -------------------------------------------------------------------------- */
+:root {
+    --ok: #46c98a;   --ok-soft: rgba(70, 201, 138, 0.14);
+    --bad: #f2776c;  --bad-soft: rgba(242, 119, 108, 0.14);
+    --info: #66adf0; --info-soft: rgba(102, 173, 240, 0.14);
+    --vio: #ad97f9;  --vio-soft: rgba(173, 151, 249, 0.15);
+    --term-bg: #07090c;
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        --ok: #17824d;   --ok-soft: rgba(23, 130, 77, 0.1);
+        --bad: #c03a2d;  --bad-soft: rgba(192, 58, 45, 0.09);
+        --info: #1d6aad; --info-soft: rgba(29, 106, 173, 0.09);
+        --vio: #5b42c2;  --vio-soft: rgba(91, 66, 194, 0.09);
+        --term-bg: #10141b;
+    }
+}
+:root[data-theme="light"] {
+    --ok: #17824d;   --ok-soft: rgba(23, 130, 77, 0.1);
+    --bad: #c03a2d;  --bad-soft: rgba(192, 58, 45, 0.09);
+    --info: #1d6aad; --info-soft: rgba(29, 106, 173, 0.09);
+    --vio: #5b42c2;  --vio-soft: rgba(91, 66, 194, 0.09);
+    --term-bg: #10141b;
+}
+
+.wide { max-width: 1200px; }
+
+.crumbs { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-mute); margin-bottom: 0.9rem; }
+.crumbs a { color: var(--text-dim); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+
+.course-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.5rem 2.5rem;
+    align-items: end;
+    padding-bottom: 1.6rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+}
+.course-head h1 { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 0.7rem; }
+.course-head h1 span { color: var(--accent); }
+.course-head .section-intro { max-width: 70ch; }
+.head-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.1rem; }
+.progress { min-width: 220px; font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-mute); }
+.progress-bar { height: 6px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; margin-top: 0.45rem; }
+.progress-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-hi)); transition: width 0.4s; }
+
+.course { display: grid; grid-template-columns: 252px minmax(0, 1fr); gap: 2.4rem; align-items: start; }
+
+.c-nav { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; padding-right: 0.25rem; scrollbar-width: thin; }
+.c-nav-h { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-mute); margin: 0 0 0.5rem 0.7rem; }
+.c-nav ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.c-nav button {
+    width: 100%; display: grid; grid-template-columns: 1.9rem minmax(0, 1fr) auto; gap: 0.3rem; align-items: baseline;
+    text-align: left; background: none; border: 1px solid transparent; border-radius: var(--radius-sm);
+    padding: 0.5rem 0.65rem; color: var(--text-dim); font: inherit; font-size: 0.9rem; line-height: 1.35; cursor: pointer;
+    transition: background-color var(--speed), color var(--speed);
+}
+.c-nav button:hover { background: var(--surface-2); color: var(--text); }
+.c-nav button[aria-current="step"] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text); }
+.c-nav .no { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-mute); }
+.c-nav button[aria-current="step"] .no { color: var(--accent); }
+.c-nav .cnt { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-mute); }
+.c-nav .cnt.done { color: var(--ok); }
+
+.c-panel { min-width: 0; }
+.c-kicker { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.c-title { font-size: clamp(1.6rem, 3.6vw, 2.25rem); margin: 0.25rem 0 1rem; }
+.c-steps { display: flex; gap: 5px; margin-bottom: 1.4rem; }
+.c-steps button { flex: 1; height: 7px; padding: 0; border: 0; border-radius: 99px; background: var(--surface-2); cursor: pointer; }
+.c-steps button.seen { background: var(--accent-line); }
+.c-steps button.cur { background: var(--accent); }
+.c-sno { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-mute); margin: 0; }
+.c-stitle { font-size: clamp(1.25rem, 2.6vw, 1.6rem); margin: 0.15rem 0 1rem; }
+
+.c-visual { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem; margin-bottom: 1.25rem; box-shadow: var(--shadow); min-width: 0; }
+.c-plain { display: flex; gap: 0.8rem; align-items: flex-start; margin: 0 0 1.1rem; padding: 0.85rem 1rem; border-radius: var(--radius-sm); background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--text); font-size: 0.96rem; max-width: 80ch; }
+.c-plain b { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); white-space: nowrap; padding-top: 0.2rem; }
+.c-notes { list-style: none; margin: 0 0 1.1rem; padding: 0; display: grid; gap: 0.6rem; max-width: 78ch; }
+.c-notes li { position: relative; padding-left: 1.3rem; color: var(--text-dim); }
+.c-notes li::before { content: ""; position: absolute; left: 0.15rem; top: 0.62em; width: 7px; height: 7px; border-radius: 2px; background: var(--accent); }
+.c-notes strong { color: var(--text); font-weight: 600; }
+.c-notes code, .c-repo code, .c-plain code, .tbl code, .msg code, .c-visual p code { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 0.02em 0.32em; color: var(--accent); }
+.c-repo { margin: 0 0 1.1rem; padding: 0.9rem 1rem; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; color: var(--text-dim); max-width: 80ch; font-size: 0.95rem; }
+.c-repo b { display: block; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-mute); margin-bottom: 0.25rem; }
+.c-terms { margin: 0 0 1.1rem; max-width: 80ch; }
+.c-terms summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); }
+.c-terms dl { margin: 0.6rem 0 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35rem 1rem; font-size: 0.92rem; }
+.c-terms dt { font-weight: 600; color: var(--text); }
+.c-terms dd { margin: 0; color: var(--text-dim); }
+.c-src { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 1.6rem; }
+.c-src > span:first-child { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-mute); }
+.chip-src { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 0.12rem 0.5rem; text-decoration: none; }
+a.chip-src:hover { color: var(--accent); border-color: var(--accent-line); }
+.chip-src b { color: var(--text); font-weight: 600; }
+.c-pager { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+.c-pager .cbtn { max-width: 48%; }
+.c-pager .cbtn span { display: block; font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-mute); }
+.keys { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-mute); margin-top: 0.8rem; }
+kbd { font-family: var(--font-mono); font-size: 0.72rem; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3rem; color: var(--text-dim); }
+
+/* evidence tags */
+.ev { font-family: var(--font-mono); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.04em; padding: 0.05rem 0.4rem; border-radius: 5px; white-space: nowrap; vertical-align: 0.08em; margin: 0 0.1rem; }
+.ev-sim { background: var(--ok-soft); color: var(--ok); }
+.ev-viv { background: var(--vio-soft); color: var(--vio); }
+.ev-doc { background: var(--info-soft); color: var(--info); }
+.ev-hw  { background: var(--bad-soft); color: var(--bad); }
+.ev-est { background: var(--accent-soft); color: var(--accent); }
+
+/* widgets */
+.cbtn { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; padding: 0.45rem 0.85rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; font-size: 0.88rem; font-weight: 550; cursor: pointer; text-align: left; transition: border-color var(--speed), background-color var(--speed); }
+.cbtn:hover { border-color: var(--accent-line); }
+.cbtn:disabled { opacity: 0.4; cursor: default; }
+.cbtn.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.cbtn.pri:hover { background: var(--accent-hi); }
+.cbtn.pri span { color: inherit; opacity: 0.75; }
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.8rem; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-soft); }
+.seg button { border: 0; background: none; color: var(--text-dim); font: inherit; font-size: 0.84rem; padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.seg-l { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-mute); margin-right: 0.2rem; }
+.sls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.6rem 1.4rem; margin: 0.2rem 0 0.9rem; }
+.sl { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.86rem; color: var(--text-dim); }
+.sl b { color: var(--text); font-weight: 600; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.kvs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-top: 0.9rem; }
+.kv { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem 0.75rem; min-width: 0; }
+.kv span { display: block; font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-mute); }
+.kv strong { display: block; font-size: 1.15rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv.ok strong { color: var(--ok); } .kv.bad strong { color: var(--bad); } .kv.acc strong { color: var(--accent); }
+.msg { margin-top: 0.8rem; padding: 0.6rem 0.8rem; border-radius: var(--radius-sm); background: var(--bg-soft); border: 1px solid var(--border); font-size: 0.92rem; color: var(--text-dim); }
+.msg.ok { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+.msg.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
+.msg.acc { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.hint { font-size: 0.86rem; color: var(--text-mute); margin: 0 0 0.7rem; }
+.figwrap { overflow-x: auto; }
+.figwrap svg.fig { min-width: 560px; }
+svg.fig { width: 100%; height: auto; display: block; }
+.tblwrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tbl th { text-align: left; font-weight: 600; color: var(--text); padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
+.tbl td { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+.tbl td.mono, .tbl .mono { font-family: var(--font-mono); font-size: 0.84rem; color: var(--text); }
+.tbl tr.hl td { background: var(--accent-soft); }
+.pass { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--ok); }
+.fail { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--bad); }
+.term { background: var(--term-bg); color: #d6dde6; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem 0.9rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.55; height: 330px; overflow-y: auto; white-space: pre; overflow-x: auto; }
+.term .pc { color: #ffb347; }
+.term .ck { color: #63d297; }
+.term .dim { color: #7f8a99; }
+pre.out { background: var(--term-bg); color: #d6dde6; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem 0.9rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5; overflow-x: auto; margin: 0.8rem 0 0; }
+.bigword { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; letter-spacing: 0.04em; color: var(--accent); }
+.bits { display: inline-flex; gap: 3px; }
+.bits i { font-style: normal; font-family: var(--font-mono); font-size: 0.9rem; width: 1.6rem; text-align: center; padding: 0.2rem 0; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+.bits i.one { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.bits i.first { box-shadow: 0 0 0 2px var(--info); }
+.toggles { display: flex; flex-wrap: wrap; gap: 4px; }
+.toggles button { font-family: var(--font-mono); font-size: 0.8rem; padding: 0.35rem 0.55rem; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-dim); cursor: pointer; }
+.toggles button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.7rem; margin-bottom: 1.2rem; }
+.stat { padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-soft); }
+.stat strong { display: block; font-size: 1.45rem; color: var(--accent); letter-spacing: -0.02em; }
+.stat .stat-l { display: block; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); margin: 0.15rem 0 0.3rem; }
+.stat .stat-d { display: block; font-size: 0.84rem; color: var(--text-dim); line-height: 1.4; }
+.cmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.5rem; }
+.cmap button { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0 0.4rem; text-align: left; padding: 0.7rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; transition: border-color var(--speed), transform var(--speed); }
+.cmap button:hover { border-color: var(--accent-line); transform: translateY(-2px); }
+.cmap .n { grid-row: span 2; font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); padding-top: 0.15rem; }
+.cmap .t { font-weight: 600; font-size: 0.94rem; }
+.cmap .k { font-size: 0.8rem; color: var(--text-dim); }
+.quiz { display: grid; gap: 1rem; }
+.q { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.9rem 1rem; background: var(--bg-soft); }
+.q p { margin: 0 0 0.6rem; color: var(--text); font-weight: 550; }
+.q .opts { display: grid; gap: 0.35rem; }
+.q button { text-align: left; font: inherit; font-size: 0.92rem; padding: 0.45rem 0.7rem; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; }
+.q button:hover { border-color: var(--accent-line); color: var(--text); }
+.q button.right { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.q button.wrong { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.q .why { margin-top: 0.6rem; font-size: 0.88rem; color: var(--text-dim); }
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.check-list li { display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 0.5rem; font-size: 0.92rem; color: var(--text-dim); }
+.lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.7rem; margin-top: 1rem; }
+.lesson { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem 0.9rem; background: var(--bg-soft); font-size: 0.88rem; color: var(--text-dim); }
+.lesson b { display: block; font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent); margin-bottom: 0.2rem; }
+.h4 { font-size: 0.82rem; font-family: var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-mute); margin: 1.2rem 0 0.5rem; }
+.h4:first-child { margin-top: 0; }
+
+/* svg */
+.sv-t { font: 12px var(--font-sans); fill: var(--text-dim); }
+.sv-s { font: 10.5px var(--font-sans); fill: var(--text-mute); }
+.sv-h { font: 600 12.5px var(--font-sans); fill: var(--text); }
+.sv-m { font: 11.5px var(--font-mono); fill: var(--text-dim); }
+.sv-mb { font: 700 13px var(--font-mono); fill: var(--text); }
+.sv-acc { fill: var(--accent); }
+.sv-okt { fill: var(--ok); } .sv-badt { fill: var(--bad); } .sv-infot { fill: var(--info); }
+.sv-box { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 1; }
+.sv-box.acc { fill: var(--accent-soft); stroke: var(--accent-line); }
+.sv-box.ok { fill: var(--ok-soft); stroke: var(--ok); }
+.sv-box.bad { fill: var(--bad-soft); stroke: var(--bad); }
+.sv-box.info { fill: var(--info-soft); stroke: var(--info); }
+.sv-box.vio { fill: var(--vio-soft); stroke: var(--vio); }
+.sv-box.none { fill: none; stroke: var(--border-strong); stroke-dasharray: 4 3; }
+.sv-line { stroke: var(--text-mute); stroke-width: 1.4; fill: none; }
+.sv-line.acc { stroke: var(--accent); } .sv-line.info { stroke: var(--info); } .sv-line.ok { stroke: var(--ok); } .sv-line.bad { stroke: var(--bad); }
+.sv-head { fill: var(--text-mute); } .sv-head.acc { fill: var(--accent); } .sv-head.info { fill: var(--info); }
+.sv-wave { stroke: var(--accent); stroke-width: 2; fill: none; stroke-linejoin: round; }
+.sv-wave.dim { stroke: var(--text-mute); stroke-width: 1.5; }
+.sv-wave.info { stroke: var(--info); }
+.sv-wave.ok { stroke: var(--ok); }
+.sv-grid { stroke: var(--border); stroke-width: 1; }
+.sv-dash { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+.sv-band { fill: var(--ok-soft); } .sv-band.bad { fill: var(--bad-soft); } .sv-band.acc { fill: var(--accent-soft); }
+.sv-trace { stroke: var(--accent); stroke-width: 1.1; fill: none; opacity: 0.22; }
+.pick { cursor: pointer; }
+.pick:hover .sv-box, .pick:focus .sv-box { stroke: var(--accent); }
+.pick.on .sv-box { stroke: var(--accent); stroke-width: 2.2; }
+.pick:focus { outline: none; }
+.dimmed { opacity: 0.22; transition: opacity 0.25s; }
+
+@media (max-width: 920px) {
+    .course { grid-template-columns: minmax(0, 1fr); gap: 1.2rem; }
+    .c-nav { position: static; max-height: none; overflow-x: auto; padding-bottom: 0.4rem; }
+    .c-nav-h { display: none; }
+    .c-nav ol { display: flex; gap: 0.35rem; }
+    .c-nav button { white-space: nowrap; border-color: var(--border); grid-template-columns: auto auto; }
+    .c-nav .cnt { display: none; }
+    .course-head { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+    .c-visual { padding: 0.8rem; }
+    .c-pager .cbtn { max-width: 100%; flex: 1 1 100%; }
+    .c-visual:has(.figwrap)::after { content: "\2190  swipe the figure sideways  \2192"; display: block; margin-top: 0.6rem; text-align: center; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-mute); }
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <a class="brand" href="index.html">
+            <img src="assets/badger.png" alt="Ostim BLogic" height="26">
+            <span class="brand-name">Berk M. Kuzu</span>
+        </a>
+
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="log.html">Log</a></li>
+                <li><a href="projects.html">Projects</a></li>
+                <li><a href="notes.html">Notes</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+        </nav>
+
+        <button type="button" class="icon-btn theme-toggle" aria-label="Switch theme">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+        </button>
+
+        <button type="button" class="icon-btn nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="site-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+    </div>
+</header>
+
+<main id="main">
+
+    <section class="page-head">
+        <div class="container wide">
+            <p class="crumbs"><a href="projects.html">Projects</a> / Serdes Practice</p>
+            <div class="course-head">
+                <div>
+                    <span class="eyebrow">Course &middot; Serdes Practice</span>
+                    <h1>SerDes on an <span>FPGA</span></h1>
+                    <p class="section-intro">
+                        How a serializer and a deserializer work, and what it takes to
+                        receive fast data: sampling in the eye, finding words, buffering
+                        between clocks and proving every bit. Each lesson has a figure you
+                        can play with, and every number comes from the tests of the
+                        <a href="https://github.com/BerkmKuzu1/Serdes-Practice" target="_blank" rel="noopener">Serdes Practice</a>
+                        labs on the ALINX AX7101 (Artix-7).
+                    </p>
+                    <div class="head-links">
+                        <a class="btn btn-primary" href="https://github.com/BerkmKuzu1/Serdes-Practice" target="_blank" rel="noopener">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.9-.01 3.29 0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg>
+                            The labs on GitHub
+                        </a>
+                        <ul class="tags" style="align-items:center"><li>VHDL</li><li>Artix-7</li><li>OSERDESE2</li><li>ISERDESE2</li><li>IDELAYE2</li><li>GTP</li></ul>
+                    </div>
+                </div>
+                <div class="progress" aria-live="polite">
+                    <span id="prog-label">0 of 0 screens seen</span>
+                    <div class="progress-bar"><i id="prog-bar"></i></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+        <div class="container wide">
+            <div class="course">
+                <nav class="c-nav" aria-label="Chapters">
+                    <p class="c-nav-h">Chapters</p>
+                    <ol id="c-nav"></ol>
+                </nav>
+                <article class="c-panel" id="c-panel" aria-live="polite">
+                    <noscript><p class="msg">This course draws its figures with JavaScript. The labs and their write-ups are also on <a href="https://github.com/BerkmKuzu1/Serdes-Practice">GitHub</a>.</p></noscript>
+                </article>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <p class="footer-note">&copy; 2026 Berk Muammer Kuzu &middot; plain HTML, CSS and JS</p>
+        <div class="social-links">
+            <a href="https://github.com/BerkmKuzu1" target="_blank" rel="noopener" aria-label="GitHub">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.9-.01 3.29 0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/berk-muammer-kuzu/" target="_blank" rel="noopener" aria-label="LinkedIn">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM9 9h3.8v1.64h.05c.53-.95 1.83-1.95 3.76-1.95 4.02 0 4.76 2.5 4.76 5.76V21h-4v-5.6c0-1.34-.02-3.06-1.9-3.06-1.9 0-2.19 1.46-2.19 2.96V21H9z"/></svg>
+            </a>
+        </div>
+    </div>
+</footer>
+
+<script src="script.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* ======================================================================
+   Small DOM and SVG helpers
+   ====================================================================== */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const REDUCED = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+const REPO = 'https://github.com/BerkmKuzu1/Serdes-Practice/blob/main/';
+
+function add(e, ...kids) {
+    for (const k of kids.flat(Infinity)) {
+        if (k === null || k === undefined || k === false) continue;
+        e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+    }
+    return e;
+}
+function set(e, a) {
+    if (!a) return e;
+    for (const [k, v] of Object.entries(a)) {
+        if (v === null || v === undefined || v === false) continue;
+        if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+        else if (k === 'style') e.style.cssText = v;
+        else e.setAttribute(k, v === true ? '' : v);
+    }
+    return e;
+}
+const h = (t, a, ...k) => add(set(document.createElement(t), a), k);
+const s = (t, a, ...k) => add(set(document.createElementNS(SVGNS, t), a), k);
+const put = (e, ...k) => { e.replaceChildren(); return add(e, k); };
+
+/* **bold**, `code` and evidence tags [[sim]] [[viv]] [[doc]] [[hw]] [[est]] */
+const TAG = {
+    sim: ['ev-sim', 'simulated'], viv: ['ev-viv', 'Vivado result'], doc: ['ev-doc', 'from the docs'],
+    hw: ['ev-hw', 'not on hardware yet'], est: ['ev-est', 'estimate']
+};
+const RX = /(\*\*[^*]+\*\*|`[^`]+`|\[\[(?:sim|viv|doc|hw|est)\]\])/g;
+function rich(t) {
+    return String(t).split(RX).filter(Boolean).map(p => {
+        if (p.length > 4 && p.startsWith('**') && p.endsWith('**')) return h('strong', null, rich(p.slice(2, -2)));
+        if (p.length > 2 && p.startsWith('`') && p.endsWith('`')) return h('code', null, p.slice(1, -1));
+        const m = /^\[\[(\w+)\]\]$/.exec(p);
+        if (m && TAG[m[1]]) return h('span', { class: 'ev ' + TAG[m[1]][0] }, TAG[m[1]][1]);
+        return p;
+    });
+}
+
+function seg(label, opts, cur, on) {
+    const g = h('div', { class: 'seg', role: 'group', 'aria-label': label });
+    const bs = [];
+    for (const [v, l] of opts) {
+        const b = h('button', { type: 'button', 'aria-pressed': String(v === cur) }, l);
+        b.addEventListener('click', () => { bs.forEach(x => x.setAttribute('aria-pressed', String(x === b))); on(v); });
+        bs.push(b);
+    }
+    return h('div', { style: 'display:inline-flex;align-items:center;gap:.35rem;flex-wrap:wrap' },
+        h('span', { class: 'seg-l' }, label), add(g, bs));
+}
+function slider(label, min, max, step, val, fmt, on) {
+    const out = h('b', { class: 'mono' });
+    const r = h('input', { type: 'range', min, max, step, value: val, 'aria-label': label });
+    const upd = () => { out.textContent = fmt(Number(r.value)); };
+    r.addEventListener('input', () => { upd(); on(Number(r.value)); });
+    upd();
+    return h('label', { class: 'sl' }, h('span', null, label + ': ', out), r);
+}
+const kv = (l, v, cls) => h('div', { class: 'kv' + (cls ? ' ' + cls : '') }, h('span', null, l), h('strong', null, v));
+const btn = (label, on, cls) => h('button', { type: 'button', class: 'cbtn' + (cls ? ' ' + cls : ''), onclick: on }, label);
+const msg = (t, cls) => h('div', { class: 'msg' + (cls ? ' ' + cls : '') }, rich(t));
+function table(head, rows, opts) {
+    return h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' },
+        h('thead', null, h('tr', null, head.map(x => h('th', null, x)))),
+        h('tbody', null, rows.map(r => h('tr', { class: opts && opts.hl && opts.hl(r) ? 'hl' : null },
+            r.map((c, i) => h('td', { class: opts && opts.mono && opts.mono.includes(i) ? 'mono' : null }, typeof c === 'string' ? rich(c) : c)))))));
+}
+
+function svg(w, hh, label) { return s('svg', { viewBox: `0 0 ${w} ${hh}`, class: 'fig', role: 'img', 'aria-label': label }); }
+const fw = e => h('div', { class: 'figwrap' }, e);
+function T(g, x, y, t, cls, anchor) { const e = s('text', { x, y, class: cls || 'sv-t', 'text-anchor': anchor || 'start' }, t); g.append(e); return e; }
+function R(g, x, y, w, hh, cls, rx) { const e = s('rect', { x, y, width: w, height: hh, rx: rx == null ? 7 : rx, class: cls || 'sv-box' }); g.append(e); return e; }
+function L(g, x1, y1, x2, y2, cls) { const e = s('line', { x1, y1, x2, y2, class: cls || 'sv-line' }); g.append(e); return e; }
+function P(g, d, cls) { const e = s('path', { d, class: cls || 'sv-line' }); g.append(e); return e; }
+function A(g, x1, y1, x2, y2, cls) {
+    L(g, x1, y1, x2, y2, 'sv-line ' + (cls || ''));
+    const a = Math.atan2(y2 - y1, x2 - x1), l = 7, w = 3.8;
+    const p = (dx, dy) => `${(x2 + dx).toFixed(1)},${(y2 + dy).toFixed(1)}`;
+    g.append(s('polygon', { class: 'sv-head ' + (cls || ''), points: `${x2},${y2} ${p(-l * Math.cos(a) + w * Math.sin(a), -l * Math.sin(a) - w * Math.cos(a))} ${p(-l * Math.cos(a) - w * Math.sin(a), -l * Math.sin(a) + w * Math.cos(a))}` }));
+}
+/* a digital waveform: bits[i] drawn in slot i, 'null' bits leave a gap */
+function wave(g, x0, y, bits, w, amp, cls) {
+    let d = '', prev = null;
+    bits.forEach((b, i) => {
+        const x = x0 + i * w;
+        if (b === null || b === undefined) { prev = null; return; }
+        const yy = b ? y - amp : y + amp;
+        if (prev === null) d += `M${x} ${yy}`;
+        else if (prev !== b) d += ` L${x} ${prev ? y - amp : y + amp} L${x} ${yy}`;
+        d += ` L${x + w} ${yy}`;
+        prev = b;
+    });
+    if (d) P(g, d, 'sv-wave ' + (cls || ''));
+}
+function clockWave(g, x0, y, periods, per, amp, cls) {
+    const bits = [];
+    for (let i = 0; i < periods; i++) bits.push(1, 0);
+    wave(g, x0, y, bits, per / 2, amp, cls);
+}
+function pickBox(g, x, y, w, hh, title, sub, cls, on) {
+    const gg = s('g', { class: 'pick', tabindex: 0, role: 'button', 'aria-label': title });
+    R(gg, x, y, w, hh, 'sv-box ' + (cls || ''));
+    T(gg, x + w / 2, y + hh / 2 + (sub ? -3 : 4), title, 'sv-h', 'middle');
+    if (sub) T(gg, x + w / 2, y + hh / 2 + 12, sub, 'sv-s', 'middle');
+    gg.addEventListener('click', on);
+    gg.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); on(); } });
+    g.append(gg);
+    return gg;
+}
+
+/* cleanup of timers when the screen changes */
+let CLEAN = [];
+const onClean = f => CLEAN.push(f);
+function runClean() { const c = CLEAN; CLEAN = []; c.forEach(f => { try { f(); } catch (e) { /* ignore */ } }); }
+function every(ms, f) { const id = setInterval(f, ms); onClean(() => clearInterval(id)); return id; }
+
+/* bits and numbers */
+const bitsOf = v => Array.from({ length: 8 }, (_, i) => (v >> i) & 1);      // bit 0 first in time
+const fromBits = b => b.reduce((v, x, i) => v | (x << i), 0);
+const hex2 = v => v.toString(16).toUpperCase().padStart(2, '0');
+const rotr = (v, k) => ((v >> k) | (v << (8 - k))) & 0xFF;
+const fmt = (n, d) => Number(n).toLocaleString('en-US', { maximumFractionDigits: d == null ? 0 : d, minimumFractionDigits: 0 });
+function sci(x) { if (x === 0) return '0'; const e = Math.floor(Math.log10(x)); const m = x / Math.pow(10, e); return `${m.toFixed(1)}e${e}`; }
+function rng(seed) { let x = seed >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+function bitRow(bits, firstIdx, label) {
+    return h('div', { style: 'display:flex;align-items:center;gap:.6rem;flex-wrap:wrap' },
+        label ? h('span', { class: 'seg-l', style: 'min-width:5.5rem' }, label) : null,
+        h('span', { class: 'bits' }, bits.map((b, i) => h('i', { class: (b ? 'one' : '') + (i === firstIdx ? ' first' : '') }, String(b)))));
+}
+
+/* ======================================================================
+   Figures: one function per screen
+   ====================================================================== */
+
+/* ---------- Start here ---------- */
+function vIntro(root) {
+    const stat = (v, l, d) => h('div', { class: 'stat' }, h('strong', null, v), h('span', { class: 'stat-l mono' }, l), h('span', { class: 'stat-d' }, d));
+    add(root,
+        h('div', { class: 'stats' },
+            stat('4 labs', 'from scratch to GHz', 'shift registers, Artix-7 primitives, a board link, GTP transceivers'),
+            stat('400 Mb/s', 'Lab 3 link', 'OSERDESE2 to ISERDESE2 through header J11, up to 1200 Mb/s'),
+            stat('32 × 78 ps', 'eye scan', 'IDELAYE2 taps swept with PRBS-7 to find the eye'),
+            stat('6.25 Gb/s', 'Lab 4 lanes', 'IBERT on the four SFP+ cages of the AX7101')),
+        h('p', { class: 'hint' }, 'Pick a chapter, or press → to start at the beginning. Your place is remembered on this device.'),
+        h('div', { class: 'cmap' }, CH.slice(1).map((c, i) => h('button', { type: 'button', onclick: () => go(i + 1, 0) },
+            h('span', { class: 'n' }, String(i + 1).padStart(2, '0')), h('span', { class: 't' }, c.t), h('span', { class: 'k' }, c.k)))));
+}
+
+/* ---------- 1.1 parallel vs serial ---------- */
+function vParallel(root) {
+    let skew = 400, rate = 400;
+    const F = [0, 0.62, 0.3, 1, 0.45, 0.78, 0.15, 0.55];       // where each lane sits inside the skew
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' }), note = h('div');
+    function draw() {
+        const ui = 1e6 / rate, W = 640, H = 266, x0 = 70;
+        const sc = Math.min(330 / ui, (W - x0 - 40) / (ui + skew)), cell = ui * sc;
+        const g = svg(W, H, 'Eight parallel lanes with skew between them');
+        T(g, 8, 18, 'one bit on each of 8 parallel wires (D0..D7); the receiver needs a moment where all 8 are stable', 'sv-s');
+        const offs = F.map(f => f * skew * sc);
+        const lo = Math.max(...offs), hi = Math.min(...offs) + cell, margin = 150 * sc;
+        const ok = hi - lo - 2 * margin > 0;
+        if (hi - lo > 0) R(g, x0 + lo, 28, hi - lo, 8 * 26 + 2, ok ? 'sv-band' : 'sv-band bad', 4);
+        for (let i = 0; i < 8; i++) {
+            const y = 44 + i * 26, xa = x0 + offs[i], xb = xa + cell;
+            T(g, 12, y + 4, 'D' + i, 'sv-m');
+            P(g, `M${x0 - 40} ${y - 8} L${xa - 6} ${y - 8} L${xa + 6} ${y + 8} L${xb - 6} ${y + 8} L${xb + 6} ${y - 8} L${W - 12} ${y - 8}`, 'sv-wave dim');
+            P(g, `M${x0 - 40} ${y + 8} L${xa - 6} ${y + 8} L${xa + 6} ${y - 8} L${xb - 6} ${y - 8} L${xb + 6} ${y + 8} L${W - 12} ${y + 8}`, 'sv-wave');
+        }
+        T(g, x0 + Math.max(lo, 0), H - 18, ok ? 'all 8 lanes valid here' : 'no safe moment for all 8 lanes', ok ? 'sv-okt sv-h' : 'sv-badt sv-h');
+        fig.replaceChildren(g);
+        const win = ui - skew - 300;
+        put(out, kv('bit time (UI)', fmt(ui) + ' ps'), kv('lane-to-lane skew', fmt(skew) + ' ps'),
+            kv('common window', (win > 0 ? fmt(win) : '0') + ' ps', win > 0 ? 'ok' : 'bad'));
+        put(note, msg(win > 0
+            ? `Window left = UI − skew − about 300 ps for setup, hold and jitter [[est]]. Raise the rate or the skew and it closes.`
+            : `At ${rate} Mb/s per wire the skew eats the whole bit. A serial lane has no lane-to-lane skew: it carries one bit at a time and the receiver locks onto that single line.`, win > 0 ? null : 'bad'));
+    }
+    add(root, h('div', { class: 'sls' },
+        slider('rate per wire', 100, 1000, 50, rate, v => v + ' Mb/s', v => { rate = v; draw(); }),
+        slider('skew between wires', 0, 2000, 50, skew, v => v + ' ps', v => { skew = v; draw(); })), fig, out, note);
+    draw();
+}
+
+/* ---------- 1.2 the serializer is a shift register ---------- */
+function vShift(root) {
+    const words = [[0x53, "'S'"], [0x65, "'e'"], [0xF0, 'x"F0"'], [0xA5, 'x"A5"']];
+    let word = 0x53, reg = [], out = [], timer = null;
+    const fig = h('div', { class: 'figwrap' }), info = h('div');
+    const play = btn('▶ Play', () => { if (timer) stop(); else start(); }, 'pri');
+    function reset() { stop(); reg = bitsOf(word); out = []; draw(); }
+    function tick() {
+        if (out.length >= 8) { stop(); return; }
+        out.push(reg[0]); reg = reg.slice(1).concat([null]); draw();
+        if (out.length >= 8) stop();
+    }
+    function start() { if (out.length >= 8) reset(); play.textContent = '❚❚ Pause'; timer = every(REDUCED ? 300 : 650, tick); }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } play.textContent = '▶ Play'; }
+    function draw() {
+        const g = svg(640, 210, 'An 8-bit shift register sending its bits onto a line');
+        T(g, 30, 22, 'shift register (loaded with the word, shifted once per bit clock)', 'sv-s');
+        for (let i = 0; i < 8; i++) {
+            const bit = 7 - i, x = 30 + i * 40, v = reg[bit];
+            R(g, x, 34, 36, 40, v === null ? 'sv-box none' : (v ? 'sv-box acc' : 'sv-box'), 6);
+            T(g, x + 18, 60, v === null ? '' : String(v), 'sv-mb', 'middle');
+            T(g, x + 18, 90, 'bit ' + bit, 'sv-s', 'middle');
+        }
+        A(g, 352, 54, 392, 54, 'acc');
+        T(g, 404, 22, 'the line: bit 0 leaves first', 'sv-s');
+        const slots = [];
+        for (let i = 0; i < 8; i++) slots.push(i < out.length ? out[i] : null);
+        for (let i = 0; i <= 8; i++) L(g, 404 + i * 28, 30, 404 + i * 28, 80, 'sv-dash');
+        wave(g, 404, 55, slots, 28, 15);
+        for (let i = 0; i < 8; i++) T(g, 418 + i * 28, 96, 'b' + i, 'sv-s', 'middle');
+        T(g, 30, 140, 'time →', 'sv-s');
+        T(g, 30, 166, 'sent so far:', 'sv-t');
+        T(g, 120, 166, out.length ? out.join(' ') : '(nothing yet)', 'sv-mb');
+        T(g, 30, 192, `word x"${hex2(word)}" = ${bitsOf(word).slice().reverse().join('')} (bit 7 … bit 0)`, 'sv-m');
+        fig.replaceChildren(g);
+        put(info, out.length === 8 ? msg('All 8 bits are on the line, bit 0 first. A new word is loaded now: one word every 8 bit clocks.', 'ok')
+            : msg(`Step ${out.length} of 8. Each tick shifts the register right by one; whatever is in bit 0 is on the wire.`));
+    }
+    add(root, h('div', { class: 'row' }, seg('word', words, word, v => { word = v; reset(); }),
+        play, btn('Step', () => { stop(); tick(); }), btn('Reset', reset)), fig, info);
+    reset();
+}
+
+/* ---------- 1.3 clocks and rates ---------- */
+function vRates(root) {
+    let rate = 400, ddr = true;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' });
+    function draw() {
+        const ui = 1e6 / rate, bitClk = ddr ? rate / 2 : rate, word = rate / 8;
+        const g = svg(640, 210, 'Bit clock, word clock and the data bits');
+        const x0 = 80, w = 33;
+        T(g, 8, 40, ddr ? 'CLK (DDR)' : 'CLK (SDR)', 'sv-m');
+        T(g, 8, 100, 'data', 'sv-m');
+        T(g, 8, 160, 'CLKDIV', 'sv-m');
+        for (let i = 0; i <= 16; i++) L(g, x0 + i * w, 18, x0 + i * w, 120, i % 8 === 0 ? 'sv-line' : 'sv-dash');
+        clockWave(g, x0, 40, ddr ? 8 : 16, ddr ? 2 * w : w, 12, 'info');
+        const data = bitsOf(0x53).concat(bitsOf(0xF0));
+        wave(g, x0, 100, data, w, 12);
+        for (let i = 0; i < 16; i++) T(g, x0 + i * w + w / 2, 128, String(data[i]), 'sv-s', 'middle');
+        clockWave(g, x0, 160, 2, 8 * w, 12, 'ok');
+        T(g, x0 + 4 * w, 196, 'one word (8 bits) per CLKDIV period', 'sv-s', 'middle');
+        T(g, x0 + 12 * w, 196, ddr ? 'DDR: a bit on each CLK edge' : 'SDR: one bit per CLK period', 'sv-s', 'middle');
+        fig.replaceChildren(g);
+        put(out, kv('line rate', fmt(rate) + ' Mb/s', 'acc'), kv('one bit (UI)', fmt(ui) + ' ps'),
+            kv('bit clock', fmt(bitClk) + ' MHz'), kv('word clock', fmt(word, 1) + ' MHz'));
+    }
+    add(root, h('div', { class: 'row' },
+        seg('line rate', [200, 400, 600, 800, 1000, 1200].map(r => [r, r + ' Mb/s']), rate, v => { rate = v; draw(); }),
+        seg('mode', [[true, 'DDR'], [false, 'SDR']], ddr, v => { ddr = v; draw(); })), fig, out);
+    draw();
+}
+
+/* ---------- 1.4 the receiver's problems ---------- */
+const PROBS = {
+    lock: ['When do I sample each bit?', 'Bit lock. Sample in the middle of each bit, far from the edges. The clock comes from the same source and a delay is tuned (Lab 3), or arrives beside the data (source synchronous), or is rebuilt from the data itself (CDR, the GTPs in Lab 4).', 'Chapter 5'],
+    word: ['Where does a word start?', 'Word lock. The stream has no visible boundaries. The sender transmits something recognizable (a training byte, a comma character) and the receiver moves its boundary with BITSLIP until it matches.', 'Chapters 2, 3 and 6'],
+    clk: ['Which clock does the data live on?', 'The receive clock is not the clock of the logic that uses the data. A FIFO joins the two domains; between two crystals it must also absorb their ppm difference.', 'Chapter 4'],
+    err: ['Is every bit right?', 'A wrong bit looks just like a right one. Parity, CRCs or a known pattern such as PRBS-7 make errors visible and countable.', 'Chapter 5']
+};
+function vProblems(root) {
+    let cur = 'lock';
+    const fig = h('div', { class: 'figwrap' }), info = h('div');
+    function draw() {
+        const g = svg(640, 120, 'The path of a bit and the four questions of a receiver');
+        R(g, 8, 44, 84, 44, 'sv-box');
+        T(g, 50, 70, 'TX', 'sv-h', 'middle');
+        A(g, 92, 66, 128, 66);
+        T(g, 110, 56, 'line', 'sv-s', 'middle');
+        const items = [['lock', '1 sample', 'bit lock'], ['word', '2 words', 'word lock'], ['clk', '3 clocks', 'CDC FIFO'], ['err', '4 errors', 'PRBS, CRC']];
+        items.forEach(([k, t, sub], i) => {
+            const x = 130 + i * 112;
+            const b = pickBox(g, x, 38, 98, 56, t, sub, k === cur ? 'acc' : '', () => { cur = k; draw(); });
+            if (k === cur) b.classList.add('on');
+            if (i < 3) A(g, x + 98, 66, x + 112, 66);
+        });
+        A(g, 564, 66, 594, 66);
+        T(g, 616, 70, 'logic', 'sv-h', 'middle');
+        T(g, 320, 20, 'click a box', 'sv-s', 'middle');
+        fig.replaceChildren(g);
+        const [q, a, w] = PROBS[cur];
+        put(info, h('p', { style: 'margin:.6rem 0 .3rem;font-weight:600;color:var(--text)' }, q), h('p', { style: 'margin:0;color:var(--text-dim)' }, a),
+            h('p', { class: 'hint', style: 'margin-top:.4rem' }, 'In this course: ' + w));
+    }
+    add(root, fig, info);
+    draw();
+}
+
+/* ---------- quizzes ---------- */
+function quiz(qs) {
+    return function (root) {
+        add(root, h('div', { class: 'quiz' }, qs.map(([q, opts, right, why]) => {
+            const whyEl = h('div', { class: 'why' });
+            const bs = opts.map((o, i) => h('button', { type: 'button' }, o));
+            bs.forEach((b, i) => b.addEventListener('click', () => {
+                bs.forEach((x, j) => { x.classList.remove('right', 'wrong'); if (j === right) x.classList.add('right'); });
+                if (i !== right) b.classList.add('wrong');
+                put(whyEl, rich((i === right ? 'Right. ' : 'Not quite. ') + why));
+            }));
+            return h('div', { class: 'q' }, h('p', null, rich(q)), h('div', { class: 'opts' }, bs), whyEl);
+        })));
+    };
+}
+
+/* ---------- 2.1 Lab 1 setup ---------- */
+function vLab1(root) {
+    const g = svg(640, 168, 'Lab 1: ser8, a wire with a delay and a bit flip, and des8');
+    R(g, 20, 20, 130, 70, 'sv-box acc');
+    T(g, 85, 50, 'ser8', 'sv-h', 'middle');
+    T(g, 85, 68, '8:1, bit 0 first', 'sv-s', 'middle');
+    A(g, 150, 55, 230, 55, 'acc');
+    T(g, 190, 45, 'line_tx', 'sv-m', 'middle');
+    R(g, 230, 15, 180, 80, 'sv-box none');
+    T(g, 320, 42, 'the wire', 'sv-h', 'middle');
+    T(g, 320, 60, '3.4 bit delay', 'sv-s', 'middle');
+    T(g, 320, 76, 'optional bit flip (Step 4)', 'sv-s', 'middle');
+    A(g, 410, 55, 490, 55, 'acc');
+    T(g, 450, 45, 'line_rx', 'sv-m', 'middle');
+    R(g, 490, 20, 130, 70, 'sv-box acc');
+    T(g, 555, 50, 'des8', 'sv-h', 'middle');
+    T(g, 555, 68, '1:8 + bitslip', 'sv-s', 'middle');
+    T(g, 85, 114, 'in: word_in', 'sv-m', 'middle');
+    T(g, 85, 130, 'out: load', 'sv-m', 'middle');
+    T(g, 548, 114, 'in: bitslip', 'sv-m', 'middle');
+    T(g, 548, 130, 'out: word_out, word_valid', 'sv-m', 'middle');
+    T(g, 320, 158, 'bit clock 400 MHz → 400 Mb/s; one word every 8 bits = 50 MHz word clock', 'sv-s', 'middle');
+    add(root, fw(g), h('pre', { class: 'out' },
+        ' Step 1: the serializer\n   bit number      0 1 2 3 4 5 6 7     <- time runs to the right\n   expected        1 1 0 0 1 0 1 0\n   on the wire     1 1 0 0 1 0 1 0     (sampled in the simulation)\n   waveform        ----____--__--__  (\'-\' high, \'_\' low)\n   [check] OK: the wire carries \'S\', bit 0 first'));
+}
+
+/* ---------- 2.2 word alignment with bitslip ---------- */
+function vAlign(root) {
+    let train = 0xF0, k = 5, slips = 0;
+    const fig = h('div', { class: 'figwrap' }), state = h('div');
+    function draw() {
+        const stream = [].concat(bitsOf(train), bitsOf(train), bitsOf(train));
+        const g = svg(640, 116, 'The bit stream and the receiver window');
+        T(g, 8, 18, 'the line: training byte ' + hex2(train) + ' repeated, bit 0 first (tx word boundaries dashed)', 'sv-s');
+        const x0 = 20, w = 24;
+        for (let i = 0; i < 24; i++) {
+            R(g, x0 + i * w + 1, 30, w - 2, 30, stream[i] ? 'sv-box acc' : 'sv-box', 4);
+            T(g, x0 + i * w + w / 2, 50, String(stream[i]), 'sv-m', 'middle');
+        }
+        for (let i = 0; i <= 3; i++) L(g, x0 + i * 8 * w, 24, x0 + i * 8 * w, 66, 'sv-dash');
+        const wx = x0 + (8 + k) * w;
+        R(g, wx - 1, 26, 8 * w + 2, 38, 'sv-box none', 6);
+        P(g, `M${wx} 78 L${wx} 86 L${wx + 8 * w} 86 L${wx + 8 * w} 78`, 'sv-line info');
+        T(g, wx + 4 * w, 104, 'what the receiver takes as one word (boundary ' + k + ' bit' + (k === 1 ? '' : 's') + ' late)', 'sv-t', 'middle');
+        fig.replaceChildren(g);
+        const rx = rotr(train, k), match = rx === train;
+        const ambiguous = match && k !== 0;
+        put(state,
+            h('div', { class: 'row', style: 'gap:1.2rem' }, h('div', null, h('span', { class: 'seg-l' }, 'received'), h('div', { class: 'bigword' }, 'x"' + hex2(rx) + '"')),
+                h('div', null, bitRow(bitsOf(rx), 0, 'bits (time order)'))),
+            msg(match ? (ambiguous ? `Reads back as x"${hex2(train)}", yet the cut is still ${k} bits late. x"AA" looks the same after 2, 4 or 6 bitslips: a training byte needs 8 different rotations.`
+                : `Aligned after ${slips} bitslip${slips === 1 ? '' : 's'}: the receiver cuts the stream where the sender does.`)
+                : `x"${hex2(rx)}" is x"${hex2(train)}" rotated right by ${k}. Every bit is right; the cut is in the wrong place. Pulse BITSLIP.`,
+                match ? (ambiguous ? 'bad' : 'ok') : null));
+    }
+    add(root, h('div', { class: 'row' },
+        btn('BITSLIP (+1 bit)', () => { k = (k + 1) % 8; slips++; draw(); }, 'pri'),
+        btn('New random start', () => { k = 1 + Math.floor(Math.random() * 7); slips = 0; draw(); }),
+        seg('training byte', [[0xF0, 'x"F0"'], [0xAA, 'x"AA"']], train, v => { train = v; k = 3; slips = 0; draw(); })), fig, state);
+    draw();
+}
+
+/* ---------- 2.3 Lab 1 results ---------- */
+function vLab1Results(root) {
+    add(root, table(['Step', 'What the testbench checks', 'Result'], [
+        ['1', 'the wire carries \'S\' = x"53", bit 0 first: `1 1 0 0 1 0 1 0`', h('span', { class: 'pass' }, 'PASS')],
+        ['2', 'the receiver starts with x"87" = x"F0" rotated by 5; 3 bitslips find x"F0"', h('span', { class: 'pass' }, 'PASS')],
+        ['3', '"Hello, SerDes!" arrives intact', h('span', { class: 'pass' }, 'PASS')],
+        ['4', 'one flipped bit turns "SerDes" into "SerEes": exactly one wrong character', h('span', { class: 'pass' }, 'PASS')],
+        ['5', 'one stray bitslip turns the text into garbage', h('span', { class: 'pass' }, 'PASS')]
+    ], { mono: [0] }), h('pre', { class: 'out' },
+        '   bitslip 1  ->  received x"C3"\n   bitslip 2  ->  received x"E1"\n   bitslip 3  ->  received x"F0"\n\n Word alignment found after 3 bitslip(s).\n   received        "Hello, SerDes!"\n   received        "SerEes"\n   received        ".26.7...29...."\n\n LAB 1 PASSED (all checks OK)'),
+        msg('All 6 checks pass in **GHDL 6.0** and in **Vivado 2023.2 xsim**, with the same output [[sim]].', 'ok'));
+}
+
+/* ---------- 3.1 the I/O tile ---------- */
+const TILE = {
+    pad: ['Pad', 'The package pin. On the AX7101, J11 pin 3 is package pin B22 in bank 16 (3.3 V).'],
+    ibuf: ['Input buffer (IBUF)', 'Turns the pin voltage into a logic signal. Its IOSTANDARD (LVCMOS33 here) sets the thresholds. Its output may only go to this tile\'s IDELAY, ISERDES or input flip-flop and to the fabric.'],
+    obuf: ['Output buffer (OBUFT / IOBUF)', 'Drives the pin. DRIVE (mA) and SLEW (FAST for fast data) are set in the XDC. When OSERDESE2 drives it, its enable must come from OSERDESE2\'s TQ too (Vivado DRC THRU-1).'],
+    idelay: ['IDELAYE2', '32 taps that delay the data before it is sampled: 1 / (32 × 2 × F_REF) = 78 ps each with a 200 MHz IDELAYCTRL reference. Moving it moves the sampling point across the bit.'],
+    iserdes: ['ISERDESE2', '1:8 deserializer, DDR, NETWORKING mode. The first received bit lands on Q8. BITSLIP moves the word boundary. 2 CLKDIV cycles of latency.'],
+    oserdes: ['OSERDESE2', '8:1 serializer, DDR. D1 leaves the pin first. Takes a word on every CLKDIV edge. These 3.3 V banks have no output delay (ODELAY), so only the input side can be tuned.'],
+    clk: ['CLK and CLKDIV', 'CLK shifts the bits (200 MHz for 400 Mb/s DDR), CLKDIV moves the words (CLK / 4). Both from one MMCM through BUFGs in Lab 3.']
+};
+function vTile(root) {
+    let cur = 'iserdes';
+    const fig = h('div', { class: 'figwrap' }), info = h('div');
+    function draw() {
+        const g = svg(640, 250, 'One I/O tile of the Artix-7');
+        R(g, 6, 8, 628, 236, 'sv-box none', 12);
+        T(g, 20, 28, 'one I/O tile, next to the pin', 'sv-s');
+        const box = (key, x, y, w, hh, t, sub) => { const b = pickBox(g, x, y, w, hh, t, sub, key === cur ? 'acc' : '', () => { cur = key; draw(); }); if (key === cur) b.classList.add('on'); };
+        box('pad', 20, 100, 70, 50, 'pad', 'B22');
+        box('ibuf', 140, 56, 90, 42, 'IBUF', 'LVCMOS33');
+        box('idelay', 270, 56, 110, 42, 'IDELAYE2', '32 × 78 ps');
+        box('iserdes', 420, 50, 120, 54, 'ISERDESE2', '1:8 DDR');
+        box('obuf', 140, 158, 90, 42, 'OBUFT', 'DRIVE 16, FAST');
+        box('oserdes', 420, 152, 120, 54, 'OSERDESE2', '8:1 DDR');
+        box('clk', 270, 196, 110, 36, 'CLK, CLKDIV', 'from BUFG');
+        A(g, 90, 118, 140, 80); A(g, 230, 77, 270, 77); A(g, 380, 77, 420, 77);
+        A(g, 540, 77, 600, 77, 'acc'); T(g, 606, 81, 'Q', 'sv-m');
+        A(g, 600, 179, 540, 179, 'acc'); T(g, 606, 183, 'D', 'sv-m');
+        A(g, 420, 179, 230, 179); A(g, 140, 179, 90, 135);
+        A(g, 380, 214, 440, 206, 'info'); A(g, 380, 210, 470, 104, 'info');
+        fig.replaceChildren(g);
+        put(info, h('p', { style: 'margin:.6rem 0 .2rem;font-weight:600;color:var(--text)' }, TILE[cur][0]), h('p', { style: 'margin:0;color:var(--text-dim)' }, rich(TILE[cur][1])));
+    }
+    add(root, h('p', { class: 'hint' }, 'Click a block.'), fig, info);
+    draw();
+}
+
+/* ---------- 3.2 bit order ---------- */
+function vBitOrder(root) {
+    let word = 0x01;
+    const tg = h('div', { class: 'toggles' }), fig = h('div', { class: 'figwrap' }), info = h('div');
+    function draw() {
+        put(tg, Array.from({ length: 8 }, (_, i) => {
+            const b = h('button', { type: 'button', 'aria-pressed': String(((word >> i) & 1) === 1) }, 'D' + (i + 1));
+            b.addEventListener('click', () => { word ^= (1 << i); draw(); });
+            return b;
+        }));
+        const bits = bitsOf(word);
+        const g = svg(640, 200, 'OSERDESE2 inputs, the line, and ISERDESE2 outputs');
+        T(g, 8, 20, 'OSERDESE2 D1 … D8 = word(0) … word(7)', 'sv-s');
+        T(g, 8, 82, 'on the pin (time →)', 'sv-s');
+        const x0 = 150, w = 54;
+        wave(g, x0, 98, bits, w, 13);
+        for (let i = 0; i < 8; i++) {
+            T(g, x0 + i * w + w / 2, 44, 'D' + (i + 1), 'sv-mb', 'middle');
+            T(g, x0 + i * w + w / 2, 60, String(bits[i]), 'sv-m', 'middle');
+            T(g, x0 + i * w + w / 2, 128, 'slot ' + i, 'sv-s', 'middle');
+            T(g, x0 + i * w + w / 2, 160, 'Q' + (8 - i), 'sv-mb', 'middle');
+            T(g, x0 + i * w + w / 2, 178, String(bits[i]), 'sv-m', 'middle');
+        }
+        T(g, 8, 152, 'ISERDESE2 Q8 … Q1', 'sv-s');
+        T(g, 8, 168, '(after word lock)', 'sv-s');
+        fig.replaceChildren(g);
+        put(info, msg(`word x"${hex2(word)}" goes out D1 first and comes back as Q8..Q1 = ${bits.join('')}. Reading Q8 → Q1 left to right gives the bits in time order, so the receiver rebuilds the word with **word(i) = Q(8 − i)** [[sim]].`));
+    }
+    add(root, h('p', { class: 'hint' }, 'Toggle D1 … D8.'), tg, fig, info);
+    draw();
+}
+
+/* ---------- 3.3 bitslip in DDR mode ---------- */
+const DDR_SEQ = [[0xF0, 0], [0x1E, 3], [0x3C, 2], [0x87, 5], [0x0F, 4], [0xE1, 7], [0xC3, 6], [0x78, 1], [0xF0, 0]];
+function vBitslipDDR(root) {
+    let mode = 'ddr', idx = 0, sdrK = 0;
+    const fig = h('div', { class: 'figwrap' }), info = h('div');
+    function draw() {
+        const k = mode === 'ddr' ? DDR_SEQ[idx][1] : sdrK;
+        const prevK = mode === 'ddr' ? (idx > 0 ? DDR_SEQ[idx - 1][1] : null) : (sdrK === 0 && idx === 0 ? null : (sdrK + 7) % 8);
+        const w = mode === 'ddr' ? DDR_SEQ[idx][0] : rotr(0xF0, sdrK);
+        const g = svg(640, 230, 'The eight possible word boundaries and the moves of BITSLIP');
+        const cx = 140, cy = 124, r = 84;
+        T(g, cx, 11, 'boundary: how many bits late', 'sv-s', 'middle');
+        for (let j = 0; j < 8; j++) {
+            const a = -Math.PI / 2 + j * Math.PI / 4, x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+            const c = s('circle', { cx: x, cy: y, r: 19, class: 'sv-box' + (j === k ? ' acc' : '') });
+            g.append(c);
+            T(g, x, y + 4, String(j), j === k ? 'sv-mb sv-acc' : 'sv-mb', 'middle');
+        }
+        if (prevK !== null && prevK !== k) {
+            const a1 = -Math.PI / 2 + prevK * Math.PI / 4, a2 = -Math.PI / 2 + k * Math.PI / 4;
+            A(g, cx + (r - 26) * Math.cos(a1), cy + (r - 26) * Math.sin(a1), cx + (r - 26) * Math.cos(a2), cy + (r - 26) * Math.sin(a2), 'acc');
+        }
+        T(g, 300, 50, 'ISERDESE2 output', 'sv-s');
+        T(g, 300, 86, 'x"' + hex2(w) + '"', 'sv-mb');
+        g.lastChild.setAttribute('style', 'font-size:30px');
+        T(g, 300, 118, w === 0xF0 ? 'reads back as F0: aligned' : 'F0 rotated by ' + k, w === 0xF0 ? 'sv-h sv-okt' : 'sv-t');
+        let move = '';
+        if (prevK !== null) {
+            let d = (k - prevK + 8) % 8; if (d > 4) d -= 8;
+            move = d > 0 ? `last move: ${d} bit${d > 1 ? 's' : ''} later` : `last move: ${-d} bit${d < -1 ? 's' : ''} earlier`;
+        }
+        T(g, 300, 146, move, 'sv-h');
+        const hist = mode === 'ddr' ? DDR_SEQ.slice(0, idx + 1).map(x => hex2(x[0])).join(' → ') : '';
+        T(g, 300, 180, mode === 'ddr' ? 'measured in Lab 2:' : 'SDR rule: +1 bit every pulse', 'sv-s');
+        T(g, 300, 198, hist, 'sv-m');
+        fig.replaceChildren(g);
+        put(info, mode === 'ddr'
+            ? msg('These are the words Lab 2 measured with the Xilinx model after each pulse [[sim]]. The moves alternate: **3 bits later, then 1 bit earlier**. Eight pulses still visit every position, so "slip until the training byte appears" works. Wait at least 3 CLKDIV cycles between pulses and ignore the words right after one.')
+            : msg('In SDR mode (and in Lab 1\'s des8) every pulse moves the boundary exactly one bit.'));
+    }
+    add(root, h('div', { class: 'row' },
+        btn('BITSLIP', () => { if (mode === 'ddr') idx = (idx + 1) % DDR_SEQ.length || 1; else { sdrK = (sdrK + 1) % 8; idx = 1; } draw(); }, 'pri'),
+        btn('Reset', () => { idx = 0; sdrK = 0; draw(); }),
+        seg('model', [['ddr', 'DDR, measured'], ['sdr', 'SDR rule']], mode, v => { mode = v; idx = 0; sdrK = 0; draw(); })), fig, info);
+    draw();
+}
+
+/* ---------- 3.4 latency ---------- */
+function vLatency(root) {
+    const g = svg(640, 210, 'Latency from OSERDESE2 input to ISERDESE2 output');
+    const x0 = 40, sc = 5.4;
+    T(g, 8, 30, 'CLKDIV', 'sv-m');
+    clockWave(g, x0 + 20, 32, 5, 20 * sc, 10, 'ok');
+    for (let i = 0; i <= 5; i++) { L(g, x0 + 20 + i * 20 * sc, 46, x0 + 20 + i * 20 * sc, 196, 'sv-dash'); T(g, x0 + 20 + i * 20 * sc, 60, (i * 20) + ' ns', 'sv-s', 'middle'); }
+    const ev = (t, y, label, cls) => {
+        const x = x0 + 20 + t * sc, right = t > 50;
+        g.append(s('circle', { cx: x, cy: y, r: 5, class: 'sv-box ' + cls }));
+        T(g, right ? x - 10 : x + 10, y + 4, label, 'sv-t', right ? 'end' : 'start');
+    };
+    ev(0, 90, 'OSERDESE2 takes the word (t = 0)', 'acc');
+    ev(20, 120, 'D1 appears on the pin: 20.0 ns', 'acc');
+    ev(37.5, 150, 'D8 appears: 17.5 ns = 7 bits later', 'acc');
+    ev(80, 180, 'ISERDESE2 delivers the word: 4 CLKDIV = 80 ns', 'ok');
+    add(root, fw(g), msg('All four times were measured in the Lab 2 simulation at 400 Mb/s with a 1 ns wire [[sim]]. UG471 gives ISERDESE2 2 CLKDIV cycles in NETWORKING mode [[doc]]; the rest is the serializer and the wire.'));
+}
+
+/* ---------- 3.5 Lab 2 results ---------- */
+function vLab2Results(root) {
+    add(root, table(['Step', 'Measured in the simulation', 'Value'], [
+        ['1 reset', 'IDELAYCTRL raises RDY after its reset (model; silicon: up to 3.67 µs)', '12.6 ns'],
+        ['2 OSERDESE2', 'time from the CLKDIV edge to D1 on the pin; D8 arrives 7 bits later', '20.0 ns, +17.5 ns'],
+        ['3 ISERDESE2', 'starts at x"1E" (Q8..Q1 = 01111000); after 7 bitslips x"F0" reads Q8..Q1 = 00001111: the first bit is on Q8', '00001111'],
+        ['4 BITSLIP', 'moves of the boundary in DDR mode, 8 pulses 5 CLKDIV apart', '+3, −1, +3, −1 …'],
+        ['5 latency', 'a marker word x"A5" from OSERDESE2 input to ISERDESE2 output, 1 ns wire', '4 CLKDIV = 80 ns'],
+        ['6 eye', 'IDELAY sweep, PRBS-7, ±250 ps jitter, 2,000 bits per tap; widest clean run 17 taps (1326 ps), best tap 23', '.........XXXXXX.................']
+    ], { mono: [2] }), msg('All 10 checks pass in **Vivado 2023.2 xsim** with the Xilinx UNISIM models [[sim]].', 'ok'));
+}
+
+/* ---------- 4.1 three kinds of buffer ---------- */
+function vBuffers3(root) {
+    let f = 'all';
+    const fig = h('div', { class: 'figwrap' });
+    function draw() {
+        const g = svg(640, 230, 'Data path and clock path with three kinds of buffer');
+        const cat = { io: ['pin', 'IBUF', 'IOBUF', 'IBUFDS'], clk: ['MMCM', 'BUFG'], data: ['ISERDESE2', 'regs', 'FIFO'] };
+        const showOf = c => f === 'all' || f === c;
+        const box = (x, y, w, t, c, sub) => { const b = s('g', { class: showOf(c) ? '' : 'dimmed' }); R(b, x, y, w, 44, 'sv-box ' + (c === 'io' ? 'info' : c === 'clk' ? 'vio' : c === 'data' ? 'acc' : '')); T(b, x + w / 2, y + 22, t, 'sv-h', 'middle'); if (sub) T(b, x + w / 2, y + 37, sub, 'sv-s', 'middle'); g.append(b); };
+        T(g, 8, 18, 'data path', 'sv-s');
+        box(8, 30, 54, 'pin', 'io');
+        box(78, 30, 70, 'IBUF', 'io', 'I/O buffer');
+        box(164, 30, 84, 'IDELAYE2', 'x');
+        box(264, 30, 92, 'ISERDESE2', 'data', 'registers');
+        box(372, 30, 70, 'fabric', 'data', 'registers');
+        box(458, 30, 84, 'async FIFO', 'data', 'buffer');
+        box(558, 30, 74, 'consumer', 'x');
+        [[62, 78], [148, 164], [248, 264], [356, 372], [442, 458], [542, 558]].forEach(([a, b]) => A(g, a, 52, b, 52));
+        T(g, 8, 128, 'clock path', 'sv-s');
+        box(8, 140, 80, 'crystal', 'x', '200 MHz');
+        box(104, 140, 80, 'IBUFDS', 'io', 'I/O buffer');
+        box(200, 140, 70, 'MMCM', 'clk');
+        box(286, 140, 70, 'BUFG', 'clk', 'clock buffer');
+        A(g, 88, 162, 104, 162); A(g, 184, 162, 200, 162); A(g, 270, 162, 286, 162);
+        A(g, 356, 162, 310, 76, 'info');
+        T(g, 362, 190, 'CLK and CLKDIV to ISERDESE2 and OSERDESE2', 'sv-s');
+        fig.replaceChildren(g);
+    }
+    add(root, h('div', { class: 'row' }, seg('show', [['all', 'all'], ['io', 'I/O buffers'], ['clk', 'clock buffers'], ['data', 'data buffers']], f, v => { f = v; draw(); })), fig);
+    draw();
+}
+
+/* ---------- 4.2 J11 ---------- */
+/* only the pins the Lab 3 README and docs name; the rest are I/O lines */
+const J11 = { 1: 'GND', 2: '+5V', 3: 'B22', 4: 'C22', 5: 'A20', 6: 'B20', 37: 'GND', 38: 'GND', 39: '+3.3V', 40: '+3.3V' };
+function vJ11(root) {
+    let cur = 3;
+    const fig = h('div', { class: 'figwrap' }), info = h('div');
+    function kind(n) { const v = J11[n]; return v === 'GND' ? 'gnd' : v === '+5V' ? 'p5' : v === '+3.3V' ? 'p3' : (n === 3 || n === 5) ? 'used' : 'io'; }
+    function draw() {
+        const g = svg(640, 150, 'Header J11 of the AX7101');
+        T(g, 8, 18, 'J11, 2 × 20 pins (odd pins top row)', 'sv-s');
+        for (let n = 1; n <= 40; n++) {
+            const col = Math.floor((n - 1) / 2), top = n % 2 === 1;
+            const x = 30 + col * 30, y = top ? 54 : 94;
+            const k = kind(n);
+            const cls = k === 'p5' ? 'sv-box bad' : k === 'p3' ? 'sv-box acc' : k === 'gnd' ? 'sv-box' : k === 'used' ? 'sv-box ok' : 'sv-box info';
+            const gg = s('g', { class: 'pick' + (n === cur ? ' on' : ''), tabindex: 0, role: 'button', 'aria-label': 'J11 pin ' + n });
+            gg.append(s('circle', { cx: x, cy: y, r: 10, class: cls }));
+            T(gg, x, y + 3.5, String(n), 'sv-s', 'middle');
+            const on = () => { cur = n; draw(); };
+            gg.addEventListener('click', on);
+            gg.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); on(); } });
+            g.append(gg);
+        }
+        P(g, 'M60 42 Q75 26 90 42', 'sv-line ok');
+        T(g, 75, 30, 'jumper', 'sv-s', 'middle');
+        T(g, 30, 126, 'green: used by Lab 3 · red: +5 V · orange: +3.3 V · grey: GND · blue: I/O', 'sv-s');
+        fig.replaceChildren(g);
+        const v = J11[cur];
+        const text = cur === 3 ? 'J11 pin 3 = FPGA pin **B22** (bank 16, LVCMOS33). The OSERDESE2 drives it; RX A reads the same pin back through its input buffer. Pins 3 and 4 (B22, C22) are the N and P pins of the differential pair L20 [[doc]].'
+            : cur === 5 ? 'J11 pin 5 = FPGA pin **A20** (bank 16, LVCMOS33, pull-down). RX B: put a jumper from pin 3 to pin 5.'
+            : v === '+5V' ? '**+5 V. Never connect anything to pins 1 and 2:** the I/O banks run at 3.3 V.'
+            : v === '+3.3V' ? '+3.3 V supply. Keep pins 37 to 40 free.'
+            : v === 'GND' ? 'Ground.'
+            : v ? `J11 pin ${cur} = FPGA pin **${v}**, 3.3 V, with a 33 Ω series resistor like every J11 line.`
+            : `J11 pin ${cur}: a 3.3 V I/O line of bank 15 or 16, with a 33 Ω series resistor. The AX7101 manual lists its FPGA pin.`;
+        put(info, msg(text, v === '+5V' ? 'bad' : (cur === 3 || cur === 5) ? 'ok' : null));
+    }
+    add(root, fig, info, h('div', { style: 'margin-top:1rem' }, table(['On a 3.3 V bank like J11\'s', 'Possible?', 'Why'], [
+        ['LVCMOS33 in and out', h('span', { class: 'pass' }, 'yes'), 'what Lab 3 uses; 33 Ω series resistors tame the edges'],
+        ['LVDS_25 output', h('span', { class: 'fail' }, 'no'), 'needs a 2.5 V bank, and J11\'s banks are fixed at 3.3 V [[doc]]'],
+        ['LVDS_25 input', h('span', { class: 'pass', style: 'color:var(--accent)' }, 'with care'), 'no DIFF_TERM, an external 100 Ω resistor, input voltages inside DS181\'s limits [[doc]]'],
+        ['TMDS_33', h('span', { class: 'pass' }, 'yes'), 'a 3.3 V differential standard; needs 50 Ω pull-ups at the receiver [[doc]]']
+    ])));
+    draw();
+}
+
+/* ---------- 4.3 clock buffers ---------- */
+function vClockBufs(root) {
+    const g = svg(640, 200, 'Reach of the clock buffers');
+    R(g, 8, 10, 624, 182, 'sv-box vio', 12); T(g, 22, 30, 'whole device: BUFG (32 of them), 628 MHz', 'sv-h');
+    R(g, 30, 44, 360, 136, 'sv-box', 10); T(g, 44, 64, 'one clock region: BUFH, BUFR (÷1..8, 375 MHz out)', 'sv-t');
+    R(g, 52, 80, 210, 88, 'sv-box acc', 10); T(g, 66, 100, 'one I/O bank: BUFIO, 680 MHz', 'sv-t');
+    T(g, 66, 122, 'drives only the I/O logic', 'sv-s'); T(g, 66, 138, '(ISERDES, OSERDES, IDDR)', 'sv-s');
+    T(g, 420, 80, 'Lab 3 uses BUFG + BUFG', 'sv-h'); T(g, 420, 100, 'from one MMCM:', 'sv-t'); T(g, 420, 122, 'CLK = LINE_RATE / 2', 'sv-m'); T(g, 420, 142, 'CLKDIV = LINE_RATE / 8', 'sv-m'); T(g, 420, 168, 'any pin, simplest', 'sv-s');
+    add(root, fw(g), h('div', { style: 'margin-top:.9rem' }, table(['Legal CLK / CLKDIV pair (UG471, NETWORKING)', 'When'], [
+        ['BUFIO + BUFR ÷4 from the same input clock', 'source synchronous: a clock arrives on a clock-capable pin next to the data'],
+        ['BUFG + BUFG from one MMCM', 'Lab 3: one clock source for both ends, fabric logic on CLKDIV too'],
+        ['BUFIO + BUFR from one MMCM', 'fast, but the clock reaches only the I/O of one bank'],
+        ['mixing BUFG and BUFR from an MMCM', h('span', { class: 'fail' }, 'not allowed')]
+    ])), msg('Maximum frequencies are DS181 values for the Artix-7 -2 speed grade [[doc]].'));
+}
+
+/* ---------- 4.4 FIFO between clocks ---------- */
+function vFIFO(root) {
+    let rin = 50, busy = 0, depth = 1024;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' }), note = h('div');
+    function draw() {
+        const rout = 125 * (8 - busy) / 8;
+        const tFull = rin > rout ? depth / (rin - rout) : Infinity;
+        const T_END = isFinite(tFull) ? Math.min(Math.max(tFull * 1.6, 60), 3000) : 200;
+        const steps = 300, dt = T_END / steps;
+        let lvl = 0, dropped = 0;
+        const pts = [];
+        for (let i = 0; i <= steps; i++) {
+            pts.push([i * dt, lvl]);
+            lvl += (rin - rout) * dt;
+            if (lvl < 0) lvl = 0;
+            if (lvl > depth) { dropped += lvl - depth; lvl = depth; }
+        }
+        const W = 640, H = 220, x0 = 56, y0 = 186, pw = 560, ph = 150;
+        const g = svg(W, H, 'FIFO level over time');
+        L(g, x0, y0, x0 + pw, y0, 'sv-line'); L(g, x0, y0, x0, y0 - ph - 6, 'sv-line');
+        L(g, x0, y0 - ph, x0 + pw, y0 - ph, 'sv-dash'); T(g, x0 - 6, y0 - ph + 4, String(depth), 'sv-s', 'end'); T(g, x0 - 6, y0 + 4, '0', 'sv-s', 'end');
+        T(g, x0 + 6, y0 - ph - 8, 'full', 'sv-s');
+        T(g, x0 + pw, y0 + 18, fmt(T_END, 0) + ' µs', 'sv-s', 'end'); T(g, x0, y0 + 18, '0', 'sv-s');
+        const d = pts.map(([t, l], i) => `${i ? 'L' : 'M'}${(x0 + t / T_END * pw).toFixed(1)} ${(y0 - l / depth * ph).toFixed(1)}`).join(' ');
+        P(g, d, 'sv-wave' + (isFinite(tFull) ? '' : ' ok'));
+        if (isFinite(tFull) && tFull <= T_END) { const x = x0 + tFull / T_END * pw; L(g, x, y0 - ph, x, y0, 'sv-line bad'); T(g, x + 5, y0 - ph + 18, 'overflow from here', 'sv-badt sv-t'); }
+        fig.replaceChildren(g);
+        put(out, kv('link brings', fmt(rin) + ' MB/s'), kv('consumer takes', fmt(rout, 2) + ' MB/s'),
+            kv('full after', isFinite(tFull) ? fmt(tFull, 1) + ' µs' : 'never', isFinite(tFull) ? 'bad' : 'ok'),
+            kv('lost in this window', fmt(dropped) + ' bytes', dropped > 0 ? 'bad' : 'ok'));
+        put(note, rin === 50 && busy === 6 && depth === 1024
+            ? msg('This is Lab 3\'s experiment: at busy 6/8 the simulated FIFO filled up (`level 400`, hex for 1024), dropped 4,732 bytes (`overflow 0000127C`) and the consumer saw 3,995 broken bytes (`bad 00000F9B`) [[sim]].', 'bad')
+            : isFinite(tFull) ? msg('A buffer absorbs bursts; it cannot make a slow reader fast. Overflow time = depth / (R_in − R_out).') : msg('The reader is faster on average: the level stays near empty (Lab 3 at busy 4/8 peaked at 4 entries [[sim]]).', 'ok'));
+    }
+    add(root, h('div', { class: 'row' },
+        seg('link', [[25, '25'], [50, '50'], [75, '75'], [100, '100'], [125, '125'], [150, '150 MB/s']], rin, v => { rin = v; draw(); })),
+        h('div', { class: 'row' },
+        seg('consumer busy', [[0, '0/8'], [4, '4/8'], [6, '6/8'], [7, '7/8']], busy, v => { busy = v; draw(); }),
+        seg('depth', [[256, '256'], [1024, '1024'], [4096, '4096']], depth, v => { depth = v; draw(); })), fig, out, note);
+    draw();
+}
+
+/* ---------- 4.5 two crystals ---------- */
+function vPPM(root) {
+    let ppm = 100, rate = 125, depth = 1024, corr = false, lvl = 0.5, skips = 0, overflow = false;
+    const gauge = h('div'), out = h('div', { class: 'kvs' }), note = h('div');
+    function stats() {
+        const drift = rate * ppm;
+        put(out, kv('drift', fmt(drift) + ' bytes/s'), kv('half-full FIFO overflows after', ppm ? fmt(depth / 2 / drift * 1000, 1) + ' ms' : 'never', ppm ? 'bad' : 'ok'),
+            kv('skip symbol needed every', ppm ? fmt(1e6 / ppm) + ' bytes' : '—', 'acc'));
+    }
+    function drawGauge() {
+        const g = svg(640, 92, 'Elastic buffer level');
+        R(g, 20, 30, 600, 30, 'sv-box', 8);
+        R(g, 20, 30, Math.max(0, Math.min(1, lvl)) * 600, 30, overflow ? 'sv-box bad' : corr ? 'sv-box ok' : 'sv-box acc', 8);
+        L(g, 320, 24, 320, 66, 'sv-dash');
+        T(g, 20, 20, 'FIFO level (time-lapse)', 'sv-s'); T(g, 320, 84, 'middle', 'sv-s', 'middle');
+        T(g, 620, 20, corr ? `skips dropped: ${skips}` : (overflow ? 'overflow!' : ''), overflow ? 'sv-badt sv-h' : 'sv-s', 'end');
+        gauge.replaceChildren(g);
+    }
+    every(REDUCED ? 250 : 60, () => {
+        if (!ppm) { drawGauge(); return; }
+        if (!overflow) lvl += 0.0025 * Math.min(ppm, 200) / 100;
+        if (corr && lvl > 0.53) { lvl -= 0.03; skips++; }
+        if (lvl >= 1) { lvl = 1; overflow = true; }
+        drawGauge();
+    });
+    function reset() { lvl = 0.5; skips = 0; overflow = false; }
+    add(root, h('div', { class: 'sls' },
+        slider('crystal difference', 0, 200, 10, ppm, v => v + ' ppm', v => { ppm = v; reset(); stats(); }),
+        slider('byte rate', 25, 150, 25, rate, v => v + ' MB/s', v => { rate = v; stats(); })),
+        h('div', { class: 'row' }, seg('clock correction', [[false, 'off'], [true, 'on']], corr, v => { corr = v; reset(); }), btn('Restart', reset)),
+        gauge, out, note);
+    put(note, msg('Two crystals at the same nominal frequency still differ by tens of ppm [[est]]. Real links send "skip" symbols regularly (PCIe SKP, 8b/10b idles); the receiver\'s elastic buffer drops or repeats them to keep its level in the middle. The GTP transceivers do this in hardware.'));
+    stats(); drawGauge();
+}
+
+/* ---------- 5.1 the eye ---------- */
+function vEye(root) {
+    let jit = 120, rise = 400, rate = 400;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' });
+    function draw() {
+        const ui = 1e6 / rate, W = 640, H = 240, x0 = 40, pw = 560, y1 = 40, y0 = 200;
+        const g = svg(W, H, 'Eye diagram');
+        const r = rng(12345 + Math.round(jit) * 7 + Math.round(rise));
+        const gauss = () => { let a = 0; for (let i = 0; i < 6; i++) a += r(); return (a - 3) / 1; };
+        const tx = t => x0 + (t / ui + 0.5) / 2 * pw;
+        for (let n = 0; n < 140; n++) {
+            const b = [r() < 0.5 ? 1 : 0, r() < 0.5 ? 1 : 0, r() < 0.5 ? 1 : 0, r() < 0.5 ? 1 : 0];
+            const e = [0, ui, 2 * ui].map(t => t + gauss() * jit / 2.2);
+            let d = '';
+            for (let k = 0; k <= 80; k++) {
+                const t = -0.5 * ui + k / 80 * 2 * ui;
+                let v = b[0];
+                for (let j = 0; j < 3; j++) {
+                    const step = b[j + 1] - (j === 0 ? b[0] : b[j]);
+                    if (!step) continue;
+                    const x = (t - e[j]) / Math.max(rise, 1);
+                    v += step * Math.min(1, Math.max(0, x + 0.5));
+                }
+                v = Math.min(1, Math.max(0, v));
+                d += `${k ? 'L' : 'M'}${tx(t).toFixed(1)} ${(y0 - v * (y0 - y1)).toFixed(1)}`;
+            }
+            P(g, d, 'sv-trace');
+        }
+        const open = Math.max(0, ui - rise - 2 * jit);
+        const xc = tx(ui / 2);
+        if (open > 0) { A(g, xc - open / ui * pw / 4, 120, xc + open / ui * pw / 4, 120, 'info'); A(g, xc + open / ui * pw / 4, 120, xc - open / ui * pw / 4, 120, 'info'); }
+        L(g, xc, y1 - 10, xc, y0 + 10, 'sv-dash');
+        T(g, xc, y1 - 16, 'sample here', 'sv-s', 'middle');
+        T(g, tx(0), y0 + 26, 'edge', 'sv-s', 'middle'); T(g, tx(ui), y0 + 26, 'edge', 'sv-s', 'middle');
+        fig.replaceChildren(g);
+        put(out, kv('one bit (UI)', fmt(ui) + ' ps'), kv('jitter (≈ peak)', '±' + fmt(jit) + ' ps'), kv('eye opening', fmt(open) + ' ps', open > ui * 0.3 ? 'ok' : open > 0 ? 'acc' : 'bad'));
+    }
+    add(root, h('div', { class: 'row' }, seg('line rate', [[400, '400 Mb/s'], [800, '800 Mb/s'], [1200, '1200 Mb/s']], rate, v => { rate = v; draw(); })),
+        h('div', { class: 'sls' },
+        slider('jitter', 0, 600, 20, jit, v => '±' + v + ' ps', v => { jit = v; draw(); }),
+        slider('rise time', 100, 1200, 50, rise, v => v + ' ps', v => { rise = v; draw(); })), fig, out,
+        msg('A drawing of many random bits on top of each other. The opening estimate is UI − rise time − 2 × jitter [[est]].'));
+    draw();
+}
+
+/* ---------- 5.2 eye scan ---------- */
+function scanMap(rate, delay, jit, bits) {
+    const ui = 1e6 / rate, res = [];
+    for (let t = 0; t < 32; t++) {
+        let off = ((delay + t * 78.125) % ui + ui) % ui;
+        const d1 = off, d2 = ui - off;
+        const pj = d => jit > 0 ? Math.max(0, (jit - d) / (2 * jit)) : (d < 1 ? 0.5 : 0);
+        const pBit = 0.5 * pj(d1) + 0.5 * pj(d2);
+        const errs = Math.round(3 * pBit * bits);
+        res.push(errs);
+    }
+    const thr = bits === 2000 ? 40 : 1024;          // Lab 2's testbench and Lab 3's eye_scanner.vhd
+    const chars = res.map(e => e === 0 ? '.' : e < thr ? 'x' : 'X');
+    let run = 0, best = 0, rs = 0, bs = 0;
+    res.forEach((e, t) => { if (e === 0) { if (!run) rs = t; run++; if (run > best) { best = run; bs = rs; } } else run = 0; });
+    return { res, map: chars.join(''), best, thr, center: best ? bs + Math.floor(best / 2) : null };
+}
+function vScan(root) {
+    let rate = 400, delay = 1290, jit = 150, bits = 512, ch = 'B';
+    function build() {
+        const fig = h('div', { class: 'figwrap' }), line = h('pre', { class: 'out' }), out = h('div', { class: 'kvs' });
+        function draw() {
+            const m = scanMap(rate, delay, jit, bits);
+            const g = svg(640, 170, 'Errors per IDELAY tap');
+            const x0 = 24, w = 18.4, y0 = 130, ph = 100;
+            const mx = Math.max(1, ...m.res);
+            m.res.forEach((e, t) => {
+                const hh = e ? Math.max(4, Math.log10(e + 1) / Math.log10(mx + 1) * ph) : 0;
+                if (hh) R(g, x0 + t * w + 2, y0 - hh, w - 4, hh, 'sv-box ' + (e < m.thr ? 'acc' : 'bad'), 3);
+                else R(g, x0 + t * w + 2, y0 - 4, w - 4, 4, 'sv-box ok', 2);
+                if (t % 4 === 0) T(g, x0 + t * w + w / 2, y0 + 16, String(t), 'sv-s', 'middle');
+            });
+            if (m.center !== null) { const x = x0 + m.center * w + w / 2; L(g, x, 18, x, y0, 'sv-line ok'); T(g, x, 14, 'best tap ' + m.center, 'sv-okt sv-h', 'middle'); }
+            T(g, x0, y0 + 34, 'tap (78 ps each) · bar height: errors (log scale)', 'sv-s');
+            fig.replaceChildren(g);
+            // Lab 2's testbench prints decimal, Lab 3's design prints hex
+            put(line, bits === 2000
+                ? `   errors     ${m.map}   best tap ${m.center === null ? '--' : m.center}`
+                : `[eye] ${ch} |${m.map}| best tap ${m.center === null ? '--' : hex2(m.center)}`);
+            const ui = 1e6 / rate;
+            put(out, kv('one bit (UI)', fmt(ui) + ' ps'), kv('32 taps cover', fmt(32 * 78.125 / ui, 2) + ' UI'),
+                kv('open window', m.best + ' taps = ' + fmt(m.best * 78.125) + ' ps', m.best ? 'ok' : 'bad'),
+                kv('best tap', m.center === null ? '—' : m.center + ' (hex ' + hex2(m.center) + ')', m.center === null ? 'bad' : 'acc'));
+        }
+        const preset = (r, d, j, b, c) => () => { rate = r; delay = d; jit = j; bits = b; ch = c; build(); };
+        put(root, h('div', { class: 'row' },
+            seg('line rate', [[200, '200'], [400, '400'], [800, '800'], [1200, '1200 Mb/s']], rate, v => { rate = v; draw(); }),
+            seg('bits per tap', [[512, '512 · Lab 3 sim'], [2000, '2,000 · Lab 2'], [2097152, '2,097,152 · board']], bits, v => { bits = v; draw(); })),
+            h('div', { class: 'sls' },
+                slider('wire delay', 0, 2500, 10, delay, v => v + ' ps', v => { delay = v; draw(); }),
+                slider('jitter', 0, 500, 10, jit, v => '±' + v + ' ps', v => { jit = v; draw(); })),
+            h('div', { class: 'row' }, h('span', { class: 'seg-l' }, 'presets'),
+                btn('Lab 2 testbench', preset(400, 1600, 250, 2000, 'B')),
+                btn('Lab 3, RX B', preset(400, 1290, 150, 512, 'B')),
+                btn('Lab 3, RX A', preset(400, 1000, 0, 512, 'A'))),
+            fig, line, out,
+            msg('A model: uniform jitter on every edge, 3 checker errors per wrong bit [[est]]. Each preset uses the jitter of that testbench (±250 ps in Lab 2, ±150 ps on Lab 3\'s jumper, none on RX A\'s own pad) and a delay that reproduces the measured map: Lab 2 `.........XXXXXX.................`, RX B `..............xxxx..............` with best tap 07, RX A all dots with best tap 10 [[sim]]. `x` means fewer than 1024 errors in Lab 3\'s scanner and fewer than 40 in Lab 2\'s testbench.'));
+        draw();
+    }
+    build();
+}
+
+/* ---------- 5.3 word lock ---------- */
+function vWordLock(root) {
+    add(root, table(['Method', 'How the receiver finds the boundary', 'Cost', 'Used in'], [
+        ['training byte + BITSLIP', 'the sender repeats a known byte; slip until it reads back unchanged', 'a training phase; both ends must agree when', 'Labs 1 to 3 (x"F0")'],
+        ['comma character', '8b/10b K28.5 has a bit pattern no data can produce; align on it at any time', '25 % line overhead for 8b/10b', 'GTP transceivers, Lab 4'],
+        ['frame header / sync word', 'search for a known pattern at the start of every frame', 'header bytes in every frame', 'Ethernet, many radio links']
+    ]), msg('Whatever the method, the pattern must look different in every one of its rotations; x"F0" does, x"AA" does not (Chapter 2).'));
+}
+
+/* ---------- 5.4 PRBS-7 ---------- */
+function vPRBS(root) {
+    let tx = [1, 1, 1, 1, 1, 1, 1], rx = tx.slice(), txs = [], lines = [], errs = [], nBits = 0, nErr = 0, zeros = 0, inject = false, dead = false, timer = null;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' }), note = h('div');
+    const play = btn('▶ Play', () => { if (timer) stop(); else { play.textContent = '❚❚ Pause'; timer = every(REDUCED ? 200 : 110, () => step(1)); } }, 'pri');
+    function stop() { if (timer) { clearInterval(timer); timer = null; } play.textContent = '▶ Play'; }
+    function step(n) {
+        for (let i = 0; i < n; i++) {
+            const b = tx[5] ^ tx[6]; tx = [b].concat(tx.slice(0, 6));
+            let l = dead ? 0 : b; if (inject && !dead) { l ^= 1; inject = false; }
+            const pred = rx[5] ^ rx[6], e = l ^ pred;
+            rx = [l].concat(rx.slice(0, 6));
+            txs.push(b); lines.push(l); errs.push(e);
+            if (txs.length > 48) { txs.shift(); lines.shift(); errs.shift(); }
+            nBits++; nErr += e; zeros = l ? 0 : zeros + 1;
+        }
+        draw();
+    }
+    function draw() {
+        const g = svg(640, 150, 'PRBS-7 stream, line and checker errors');
+        const x0 = 70, w = 11.5;
+        T(g, 8, 34, 'sent', 'sv-m'); T(g, 8, 74, 'line', 'sv-m'); T(g, 8, 114, 'errors', 'sv-m');
+        wave(g, x0, 30, txs, w, 9, 'dim');
+        wave(g, x0, 70, lines, w, 9);
+        errs.forEach((e, i) => { if (e) R(g, x0 + i * w + 1, 104, w - 2, 16, 'sv-box bad', 3); });
+        T(g, x0, 142, 'newest bit on the right · each bit is predicted from the bits 6 and 7 before it', 'sv-s');
+        fig.replaceChildren(g);
+        const los = zeros >= 16;
+        put(out, kv('bits checked', fmt(nBits)), kv('errors counted', fmt(nErr), nErr ? 'bad' : 'ok'), kv('loss of signal', los ? 'YES' : 'no', los ? 'bad' : 'ok'));
+        put(note, dead ? msg(los ? 'Dead line: after a few errors at the moment it died, the checker sees only zeros and **counts nothing more**, because 0 = 0 xor 0. Only the loss-of-signal detector notices. Without its jumper, Lab 3\'s RX B reports `los 1` [[doc]].' : 'Dead line: zeros only… watch the error counter stop.', 'bad')
+            : msg('Press "Inject one error": the single flipped bit is counted **three times**, once itself and once in each of the two later predictions that use it (6 and 7 bits later). Lab 3\'s board design shows `errors 00000003` after its `e` command [[sim]].'));
+    }
+    add(root, h('div', { class: 'row' }, play, btn('Step 8 bits', () => { stop(); step(8); }), btn('Inject one error', () => { inject = true; if (!timer) step(8); }),
+        seg('line', [[false, 'connected'], [true, 'dead (all 0)']], dead, v => { dead = v; zeros = 0; if (!timer) step(24); })), fig, out, note);
+    step(40);
+}
+
+/* ---------- 5.5 BER ---------- */
+function vBER(root) {
+    let rate = 400, secs = 10;
+    const out = h('div', { class: 'kvs' }), tbl = h('div');
+    const secFmt = v => v < 1 ? '< 1 s' : v < 60 ? fmt(v) + ' s' : v < 3600 ? fmt(v / 60, 1) + ' min' : fmt(v / 3600, 1) + ' h';
+    const steps = [1, 2, 5, 10, 30, 60, 120, 300, 600, 1800, 3600, 7200, 14400, 43200, 86400];
+    function draw() {
+        const bits = rate * 1e6 * secs;
+        put(out, kv('bits checked', sci(bits)), kv('BER below (95 %)', sci(3 / bits), 'acc'), kv('time for BER < 1e-12', secFmt(3e12 / (rate * 1e6))));
+        put(tbl, table(['Line rate', 'error-free time for BER < 1e-9', 'for BER < 1e-12'], [400, 1200, 2500, 6250].map(r => [r >= 1000 ? (r / 1000) + ' Gb/s' : r + ' Mb/s', secFmt(3e9 / (r * 1e6)), secFmt(3e12 / (r * 1e6))]), { hl: row => (rate >= 1000 ? (rate / 1000) + ' Gb/s' : rate + ' Mb/s') === row[0] }));
+    }
+    let idx = 3;
+    add(root, h('div', { class: 'row' }, seg('line rate', [[400, '400 Mb/s'], [1200, '1.2 Gb/s'], [2500, '2.5 Gb/s'], [6250, '6.25 Gb/s']], rate, v => { rate = v; draw(); })),
+        h('div', { class: 'sls' }, slider('test time', 0, steps.length - 1, 1, idx, v => secFmt(steps[v]), v => { secs = steps[v]; draw(); })),
+        out, h('div', { style: 'margin-top:.8rem' }, tbl),
+        msg('With **zero** errors in N bits the honest claim is a bound: BER < 3 / N with 95 % confidence. `tools/narrator.py` prints this bound for every status line of the board.'));
+    draw();
+}
+
+/* ---------- 6.1 Lab 3 design ---------- */
+const L3 = {
+    tx: ['tx_pattern + serdes_tx', 'Training byte F0, a 32-character text or PRBS-7, one word per clock; KEY1 or `e` flips one bit. OSERDESE2 8:1 DDR drives J11 pin 3.', 'lab3_ax7101/rtl/tx_pattern.vhd'],
+    pin: ['IOBUF on J11 pin 3', 'The output buffer drives the pin and the same pin\'s input buffer reads it back for RX A. Its enable comes from OSERDESE2\'s TQ (DRC THRU-1).', 'lab3_ax7101/rtl/ax7101_serdes_top.vhd'],
+    rxa: ['RX A: pad loopback', 'IDELAYE2 + ISERDESE2 on the TX pin itself. Works with nothing connected.', 'lab3_ax7101/rtl/rx_channel.vhd'],
+    rxb: ['RX B: through the jumper', 'J11 pin 5, pull-down. Its eye is smaller: the jumper adds delay, ringing and jitter.', 'lab3_ax7101/rtl/rx_channel.vhd'],
+    mon: ['inside each receiver', 'A self-synchronizing PRBS-7 checker with loss-of-signal detection, an eye scanner (bit lock), a word aligner (word lock), counters and the text capture.', 'lab3_ax7101/rtl/rx_channel.vhd'],
+    fifo: ['async FIFO + consumer', '1024 entries, Gray-coded pointers. The consumer runs on the independent 125 MHz crystal and can be slowed down with `f`.', 'lab3_ax7101/rtl/async_fifo.vhd'],
+    ctl: ['controller + narrator', 'The start-up training and every command are small step lists (BOOT_PROG). The narrator prints messages from a ROM over the USB-UART at 115200 baud.', 'lab3_ax7101/rtl/lab_controller.vhd'],
+    clk: ['clocking', '200 MHz crystal → MMCM → BUFG for CLK, CLKDIV and the 200 MHz IDELAY reference; 125 MHz GT crystal → IBUFDS_GTE2 → BUFG.', 'lab3_ax7101/rtl/clocking.vhd']
+};
+function vLab3Block(root) {
+    let cur = 'tx';
+    const fig = h('div', { class: 'figwrap' }), info = h('div');
+    function draw() {
+        const g = svg(640, 250, 'Lab 3 block diagram');
+        const b = (k, x, y, w, hh, t, sub, cls) => { const e = pickBox(g, x, y, w, hh, t, sub, (k === cur ? 'acc ' : '') + (cls || ''), () => { cur = k; draw(); }); if (k === cur) e.classList.add('on'); };
+        b('tx', 10, 20, 120, 46, 'tx_pattern', 'OSERDESE2');
+        b('pin', 160, 20, 110, 46, 'J11 pin 3', 'IOBUF');
+        b('rxa', 300, 20, 120, 46, 'RX A', 'pad loopback');
+        b('fifo', 450, 20, 180, 46, 'async FIFO', '→ consumer on 125 MHz');
+        b('rxb', 300, 104, 120, 46, 'RX B', 'J11 pin 5');
+        b('mon', 450, 104, 180, 46, 'inside each RX', 'checker · eye scan · aligner');
+        b('clk', 10, 190, 120, 50, 'clocking', 'MMCM, BUFG');
+        b('ctl', 450, 190, 180, 50, 'controller', 'narrator → UART');
+        A(g, 130, 43, 160, 43, 'acc'); A(g, 270, 43, 300, 43, 'acc'); A(g, 420, 43, 450, 43, 'acc');
+        P(g, 'M215 66 L215 127 L300 127', 'sv-line ok'); T(g, 222, 112, 'jumper', 'sv-s');
+        A(g, 420, 60, 450, 110); A(g, 420, 127, 450, 127);
+        A(g, 540, 190, 540, 150, 'info'); A(g, 70, 190, 70, 66, 'info');
+        T(g, 140, 220, 'CLK, CLKDIV, IDELAY reference', 'sv-s');
+        fig.replaceChildren(g);
+        const [t, d, f] = L3[cur];
+        put(info, h('p', { style: 'margin:.6rem 0 .2rem;font-weight:600;color:var(--text)' }, t), h('p', { style: 'margin:0;color:var(--text-dim)' }, rich(d)),
+            h('p', { style: 'margin:.4rem 0 0' }, h('a', { class: 'chip-src', href: REPO + f, target: '_blank', rel: 'noopener' }, f)));
+    }
+    add(root, h('p', { class: 'hint' }, 'Click a block.'), fig, info);
+    draw();
+}
+
+/* ---------- 6.2 link training ---------- */
+/* BOOT_PROG in lab3_ax7101/rtl/lab_controller.vhd, and what the simulation printed for each step */
+const BOOT = [
+    ['OP_SAY M_BOOT', 'the banner', 'Hi! I am the FPGA. I send fast data to myself and check every bit.'],
+    ['OP_SAY M_TRAIN1', 'announce bit lock', '[train] 1/2 bit lock: PRBS7 on the line, 512 bits per IDELAY tap.'],
+    ['OP_MODE PRBS, OP_SETTLE', 'send PRBS-7 and give it time to reach both receivers', ''],
+    ['OP_SCAN 0', 'sweep the 32 taps of A, park in the middle of the eye', '[eye] A |................................| best tap 10'],
+    ['OP_SCAN 1', 'the same for B', '[eye] B |..............xxxx..............| best tap 07'],
+    ['OP_SAY M_TRAIN2', 'announce word lock', '[train] 2/2 word lock: sending training byte F0, pulsing BITSLIP until it reads back as F0'],
+    ['OP_MODE TRAIN, OP_SETTLE', 'send the training byte F0', ''],
+    ['OP_ALIGN', 'pulse BITSLIP on each receiver until it reads F0', '[align] A word aligned after 07 bitslips\n[align] B word aligned after 07 bitslips'],
+    ['OP_MODE PRBS, OP_SETTLE, OP_CLEAR', 'back to PRBS-7, clear the counters', ''],
+    ['OP_SAY M_RUN', 'the link is up', '[run] PRBS7 running. Status every second, numbers in hex. Type h for help.']
+];
+function vTraining(root) {
+    let i = 0, timer = null;
+    const list = h('div'), play = btn('▶ Run the start-up', () => { if (timer) stop(); else { i = 0; draw(); play.textContent = '❚❚ Pause'; timer = every(REDUCED ? 400 : 900, () => { if (i < BOOT.length) { i++; draw(); } else stop(); }); } }, 'pri');
+    function stop() { if (timer) { clearInterval(timer); timer = null; } play.textContent = '▶ Run the start-up'; }
+    function printed(b) {
+        if (!b) return h('span', { class: 'muted' }, '(prints nothing)');
+        // eye maps must not wrap, or their columns no longer line up with the taps
+        return b.split('\n').map((x, j) => [j ? h('br') : null, h('code', { style: x.includes('|') ? 'white-space:nowrap' : null }, x)]);
+    }
+    function draw() {
+        put(list, table(['#', 'BOOT_PROG step', 'What it printed (simulation)'], BOOT.map(([op, does, b], j) => [
+            String(j + 1),
+            h('span', null,
+                h('span', { class: 'mono', style: 'white-space:nowrap' }, j < i ? h('span', { class: 'pass' }, '✓ ') : null, op),
+                h('br'), h('span', { style: 'font-size:.84rem' }, does)),
+            j < i ? h('span', null, printed(b)) : h('span', { class: 'muted' }, '…')])));
+    }
+    add(root, h('div', { class: 'row' }, play, btn('Show all', () => { stop(); i = BOOT.length; draw(); })), list,
+        msg('Bit lock first (find the eye with PRBS), then word lock (slip until F0). The order matters: aligning words is hopeless while the sampling point sits on the bit edges. The printed lines are from the simulation of the real design [[sim]]; on the board each tap counts 2,097,152 bits instead of 512.'));
+    draw();
+}
+
+/* ---------- 6.3 the board talks (simulation transcript) ---------- */
+const TRANS = [
+    ["t", "LAB 3 testbench: the AX7101 design at 400 Mb/s, jumper true"],
+    ["b", ""],
+    ["f", ""],
+    ["f", "=================================================================="],
+    ["f", " Serdes Practice, Lab 3: a SerDes link inside the AX7101"],
+    ["f", "=================================================================="],
+    ["f", " Hi! I am the FPGA. I send fast data to myself and check every bit."],
+    ["f", " TX    OSERDESE2 on J11 pin 3: 400 Mb/s, bit 0 first"],
+    ["f", "       bit clock 200 MHz (DDR), word clock 50 MHz, 8 bits per word"],
+    ["f", " RX A  ISERDESE2 on the same pin, reading back its own pad (no wire)"],
+    ["f", " RX B  ISERDESE2 on J11 pin 5 (put a jumper from pin 3 to pin 5)"],
+    ["f", " FIFO  RX A -> async FIFO -> a consumer on the 125 MHz crystal"],
+    ["f", " Link training: 1) bit lock = find the eye, 2) word lock = bitslip"],
+    ["f", "[train] 1/2 bit lock: PRBS7 on the line, 512 bits per IDELAY tap."],
+    ["f", "        One bit lasts 2500 ps; 32 taps of 78 ps cover 2500 ps."],
+    ["f", "        Map: '.' no errors, 'x' some, 'X' many, '-' no signal"],
+    ["f", "[eye] A |................................| best tap 10"],
+    ["c", "OK: bit lock found an eye on A"],
+    ["f", "[eye] B |..............xxxx..............| best tap 07"],
+    ["c", "OK: bit lock found an eye on B"],
+    ["f", "[train] 2/2 word lock: sending training byte F0, pulsing BITSLIP until"],
+    ["f", "        it reads back as F0"],
+    ["f", "[align] A word aligned after 07 bitslips"],
+    ["c", "OK: word lock on A"],
+    ["f", "[align] B word aligned after 07 bitslips"],
+    ["c", "OK: word lock on B"],
+    ["f", "[run] PRBS7 running. Status every second, numbers in hex. Type h for help."],
+    ["b", ""],
+    ["p", "s      (status)"],
+    ["f", "[A] tap 10 slips 07 aligned 1 los 0 bits 000000009638 errors 00000000"],
+    ["c", "OK: A is clean"],
+    ["f", "[B] tap 07 slips 07 aligned 1 los 0 bits 00000000F130 errors 00000000"],
+    ["c", "OK: B is clean"],
+    ["f", "[fifo] level 002 max 003 overflow 00000000 busy 0/8 consumed 000000002CB7 bad 00000000"],
+    ["c", "OK: the FIFO delivers every byte"],
+    ["b", ""],
+    ["p", "e      (flip one bit)"],
+    ["f", "[tx] flipped one bit. A PRBS7 checker counts it 3 times: the bit itself,"],
+    ["b", ""],
+    ["p", "s      (status)"],
+    ["f", "     and the 2 later bits it predicts (6 and 7 bits later)."],
+    ["f", "[A] tap 10 slips 07 aligned 1 los 0 bits 000000026B50 errors 00000003"],
+    ["c", "OK: A counts the flipped bit 3 times"],
+    ["f", "[B] tap 07 slips 07 aligned 1 los 0 bits 00000002C648 errors 00000003"],
+    ["c", "OK: B counts the flipped bit 3 times"],
+    ["b", ""],
+    ["p", "t      (send text)"],
+    ["f", "[fifo] level 003 max 003 overflow 00000000 busy 0/8 consumed 00000000675A bad 00000001"],
+    ["f", "[tx] sending text. The status shows what A and B receive."],
+    ["b", ""],
+    ["p", "s      (status)"],
+    ["f", "[A] tap 10 slips 07 aligned 1 los 0 bits 000000035DB0 errors 00000003"],
+    ["f", "[B] tap 07 slips 07 aligned 1 los 0 bits 000000035DB0 errors 00000003"],
+    ["f", "[fifo] level 000 max 003 overflow 00000000 busy 0/8 consumed 000000006BB8 bad 00000001"],
+    ["f", "[A] text |Hello from OSERDESE2 on AX7101! |"],
+    ["c", "OK: A receives the text"],
+    ["f", "[B] text |Hello from OSERDESE2 on AX7101! |"],
+    ["c", "OK: B receives the text"],
+    ["b", ""],
+    ["p", "b      (bitslip)"],
+    ["f", "[rx] BITSLIP on A and B: the words are now cut at a new place. Try t, then a."],
+    ["b", ""],
+    ["p", "s      (status)"],
+    ["f", "[A] tap 10 slips 08 aligned 0 los 0 bits 000000035DB0 errors 00000003"],
+    ["f", "[B] tap 07 slips 08 aligned 0 los 0 bits 000000035DB0 errors 00000003"],
+    ["f", "[fifo] level 000 max 003 overflow 00000000 busy 0/8 consumed 000000006BB8 bad 00000001"],
+    ["f", "[A] text |H..h.H....$..&.&&........L....i.|"],
+    ["c", "OK: after a bitslip the text is garbage"],
+    ["b", ""],
+    ["p", "a      (word lock again)"],
+    ["f", "[B] text |H..h.H....$..&.&&........L....i.|"],
+    ["f", "[train] 2/2 word lock: sending training byte F0, pulsing BITSLIP until"],
+    ["f", "        it reads back as F0"],
+    ["f", "[align] A word aligned after 07 bitslips"],
+    ["c", "OK: A is aligned again"],
+    ["b", ""],
+    ["p", "s      (status)"],
+    ["f", "[align] B word aligned after 07 bitslips"],
+    ["f", "[A] tap 10 slips 0F aligned 1 los 0 bits 000000000000 errors 00000000"],
+    ["f", "[B] tap 07 slips 0F aligned 1 los 0 bits 000000000000 errors 00000000"],
+    ["f", "[fifo] level 000 max 000 overflow 00000000 busy 0/8 consumed 000000000000 bad 00000000"],
+    ["f", "[A] text |Hello from OSERDESE2 on AX7101! |"],
+    ["c", "OK: the text is back"],
+    ["b", ""],
+    ["p", "p      (send PRBS7)"],
+    ["f", "[B] text |Hello from OSERDESE2 on AX7101! |"],
+    ["f", "[tx] sending PRBS7 again. Counters cleared."],
+    ["b", ""],
+    ["p", "f      (consumer speed)"],
+    ["f", "[fifo] consumer busy 4/8: it can take 62.5 MB/s; the link brings 50 MB/s."],
+    ["b", ""],
+    ["p", "s      (status)"],
+    ["f", "[A] tap 10 slips 0F aligned 1 los 0 bits 00000000D008 errors 00000000"],
+    ["f", "[B] tap 07 slips 0F aligned 1 los 0 bits 000000012B00 errors 00000000"],
+    ["f", "[fifo] level 004 max 004 overflow 00000000 busy 4/8 consumed 0000000033F0 bad 00000000"],
+    ["c", "OK: 62.5 MB/s keeps up with 50 MB/s"],
+    ["b", ""],
+    ["p", "f      (consumer speed)"],
+    ["f", "[fifo] consumer busy 6/8: it can take 31.25 MB/s; the link brings 50 MB/s."],
+    ["b", ""],
+    ["p", "s      (status)"],
+    ["f", "[A] tap 10 slips 0F aligned 1 los 0 bits 00000002F728 errors 00000000"],
+    ["f", "[B] tap 07 slips 0F aligned 1 los 0 bits 000000035220 errors 00000000"],
+    ["f", "[fifo] level 400 max 400 overflow 0000127C busy 6/8 consumed 0000000060BD bad 00000F9B"],
+    ["c", "OK: 31.25 MB/s does not: the FIFO overflows and the stream breaks"],
+    ["b", ""],
+    ["p", "1      (eye scan on A)"],
+    ["f", "[eye] scanning A: 32 taps x 512 bits of PRBS7"],
+    ["f", "[eye] A tap 00 errors 00000000"],
+    ["f", "[eye] A tap 01 errors 00000000"],
+    ["f", "[eye] A tap 02 errors 00000000"],
+    ["f", "[eye] A tap 03 errors 00000000"],
+    ["f", "[eye] A tap 04 errors 00000000"],
+    ["f", "[eye] A tap 05 errors 00000000"],
+    ["f", "[eye] A tap 06 errors 00000000"],
+    ["f", "[eye] A tap 07 errors 00000000"],
+    ["f", "[eye] A tap 08 errors 00000000"],
+    ["f", "[eye] A tap 09 errors 00000000"],
+    ["f", "[eye] A tap 0A errors 00000000"],
+    ["f", "[eye] A tap 0B errors 00000000"],
+    ["f", "[eye] A tap 0C errors 00000000"],
+    ["f", "[eye] A tap 0D errors 00000000"],
+    ["f", "[eye] A tap 0E errors 00000000"],
+    ["f", "[eye] A tap 0F errors 00000000"],
+    ["f", "[eye] A tap 10 errors 00000000"],
+    ["f", "[eye] A tap 11 errors 00000000"],
+    ["f", "[eye] A tap 12 errors 00000000"],
+    ["f", "[eye] A tap 13 errors 00000000"],
+    ["f", "[eye] A tap 14 errors 00000000"],
+    ["f", "[eye] A tap 15 errors 00000000"],
+    ["f", "[eye] A tap 16 errors 00000000"],
+    ["f", "[eye] A tap 17 errors 00000000"],
+    ["f", "[eye] A tap 18 errors 00000000"],
+    ["f", "[eye] A tap 19 errors 00000000"],
+    ["f", "[eye] A tap 1A errors 00000000"],
+    ["f", "[eye] A tap 1B errors 00000000"],
+    ["f", "[eye] A tap 1C errors 00000000"],
+    ["f", "[eye] A tap 1D errors 00000000"],
+    ["f", "[eye] A tap 1E errors 00000000"],
+    ["f", "[eye] A tap 1F errors 00000000"],
+    ["f", "[eye] A |................................| best tap 10"],
+    ["c", "OK: the manual scan printed 32 rows and a map"],
+    ["b", ""],
+    ["r", "LAB 3 SIMULATION PASSED"]
+];
+function vTerminal(root) {
+    let i = 0, timer = null, speed = 1;
+    const term = h('div', { class: 'term', role: 'log', 'aria-label': 'Simulated serial terminal' });
+    const play = btn('▶ Play', () => { if (timer) stop(); else start(); }, 'pri');
+    function line(k, t) {
+        if (k === 'p') return h('div', { class: 'pc' }, 'PC  > ' + t);
+        if (k === 'c') return h('div', { class: 'ck' }, '  [check] ' + t);
+        if (k === 'r') return h('div', { class: 'ck', style: 'font-weight:700' }, t);
+        if (k === 't') return h('div', { class: 'dim' }, t);
+        if (k === 'b') return h('div', null, ' ');
+        return h('div', null, h('span', { class: 'dim' }, 'FPGA| '), t);
+    }
+    function start() { if (i >= TRANS.length) { i = 0; term.replaceChildren(); } play.textContent = '❚❚ Pause'; timer = every(REDUCED ? 40 : 260 / speed, tick); }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } play.textContent = '▶ Play'; }
+    function tick() { if (i >= TRANS.length) { stop(); return; } term.append(line(TRANS[i][0], TRANS[i][1])); i++; term.scrollTop = term.scrollHeight; }
+    add(root, h('div', { class: 'row' }, play, btn('Show all', () => { stop(); term.replaceChildren(...TRANS.map(x => line(x[0], x[1]))); i = TRANS.length; term.scrollTop = term.scrollHeight; }),
+        btn('Restart', () => { stop(); i = 0; term.replaceChildren(); }), seg('speed', [[1, '1×'], [3, '3×']], speed, v => { speed = v; if (timer) { stop(); start(); } })),
+        term, msg('The complete output of the Lab 3 testbench, unedited. It plays the PC: it types the commands (orange) and checks every answer (green). The `FPGA|` lines are what the real design sends over its UART [[sim]].'));
+}
+
+/* ---------- 6.4 Lab 3 results ---------- */
+function vLab3Results(root) {
+    const ok = t => h('li', null, h('span', { class: 'pass' }, 'PASS'), h('span', null, rich(t)));
+    add(root,
+        h('p', { class: 'h4' }, 'The 17 testbench checks, in order (Vivado 2023.2 xsim, 400 Mb/s, with the jumper)'),
+        h('ul', { class: 'check-list' }, TRANS.filter(x => x[0] === 'c').map(x => ok(x[1].replace(/^OK: /, '')))),
+        h('p', { class: 'h4' }, 'Building it for xc7a100tfgg484-2 (Vivado 2023.2)'),
+        table(['Line rate', 'Word clock', 'Setup slack (WNS)', 'Hold slack (WHS)', 'Size'], [
+            ['400 Mb/s', '50 MHz', '+2.506 ns', '+0.094 ns', '1,706 LUTs, 2,148 flip-flops'],
+            ['1200 Mb/s', '150 MHz', '+0.446 ns', '+0.065 ns', '1,700 LUTs, 2,161 flip-flops']
+        ], { mono: [2, 3] }),
+        h('p', { class: 'h4' }, 'What Vivado taught along the way'),
+        h('div', { class: 'lessons' },
+            h('div', { class: 'lesson' }, h('b', null, 'DRC THRU-1'), 'An OSERDESE2 driving an IOBUF must drive its T (enable) from TQ as well; fabric enable plus serializer data is refused.'),
+            h('div', { class: 'lesson' }, h('b', null, 'DRC REQP-1840'), 'An asynchronous reset on a block RAM enable could corrupt it. The FIFO no longer gates its RAM enables with the resets; its pointers are reset synchronously anyway.'),
+            h('div', { class: 'lesson' }, h('b', null, 'CDC-10'), 'A value that crosses clock domains must leave a flip-flop: logic in front of a synchronizer can glitch.'),
+            h('div', { class: 'lesson' }, h('b', null, '−3.8 ns at 150 MHz'), 'The narrator decoded a field token in one clock (a mod by 23, the field mux and a variable shift). Spread over a few short steps it meets timing at 1200 Mb/s.')),
+        msg('Not yet run on the board [[hw]]: the results above are simulation [[sim]] and Vivado reports [[viv]].'));
+}
+
+/* ---------- 6.5 run it on the board ---------- */
+function vBoard(root) {
+    add(root,
+        table(['Step', 'Do this'], [
+            ['1 wire', 'put a jumper from J11 pin 3 to pin 5 (never touch pins 1, 2 and 37 to 40)'],
+            ['2 build', '`python tools/run.py build --rate 400` (a few minutes)'],
+            ['3 program', 'Vivado Hardware Manager: Open Target, Auto Connect, Program Device, pick the .bit'],
+            ['4 talk', '`python tools/narrator.py --port COM5`, or any terminal at 115200 8N1']
+        ], { mono: [0] }),
+        h('p', { class: 'h4' }, 'Commands'),
+        table(['Key', 'Does', 'Look for'], [
+            ['h', 'help', ''], ['s', 'status now (also every second)', '`errors` and `los` of A and B'], ['e', 'flip one bit on the line (also KEY1)', '`errors` +3 on A and B, `bad` +1'],
+            ['b', 'one BITSLIP on both receivers', '`aligned 0`; in text mode the text turns to garbage'], ['a', 'word lock again (also KEY2)', 'how many bitslips it needed'],
+            ['t', 'send text instead of PRBS7', '`[A] text |Hello from OSERDESE2 on AX7101! |`'], ['p', 'back to PRBS7, counters cleared', ''],
+            ['1, 2', 'eye scan of A or B', 'one line per tap'], ['f', 'next FIFO consumer speed: busy 0, 4, 6, 7 of 8', '`overflow` and `bad` once it is too slow'], ['r', 'clear the counters', '']
+        ], { mono: [0] }),
+        msg('The LEDs: the core board LED blinks while the design is alive; LED1 is on while RX A is aligned, has a signal and has seen no errors since the last clear; LED2 does the same for RX B.'));
+}
+
+/* ---------- 7.1 inside a GTP ---------- */
+const GTPI = {
+    pcs_tx: ['TX PCS', '8b/10b encoder, PRBS generators (7, 15, 23, 31), the TX buffer between the fabric clock and the serializer clock.'],
+    pma_tx: ['TX PMA', 'The serializer (16:1 or 20:1) on a PLL clock of a few GHz, and a driver with pre- and post-cursor emphasis.'],
+    pma_rx: ['RX PMA', 'An equalizer, the clock and data recovery (CDR) circuit that builds a clock from the data, and the deserializer.'],
+    pcs_rx: ['RX PCS', 'Comma detection and alignment (word lock), 8b/10b decoder, the elastic buffer with clock correction, PRBS checkers.']
+};
+function vGTP(root) {
+    let cur = 'pma_rx';
+    const fig = h('div', { class: 'figwrap' }), info = h('div');
+    function draw() {
+        const g = svg(640, 180, 'Inside a GTP transceiver');
+        const b = (k, x, y, t, sub) => { const e = pickBox(g, x, y, 130, 50, t, sub, k === cur ? 'acc' : '', () => { cur = k; draw(); }); if (k === cur) e.classList.add('on'); };
+        T(g, 10, 30, 'fabric', 'sv-s'); T(g, 590, 30, 'SFP+', 'sv-s');
+        b('pcs_tx', 120, 20, 'TX PCS', '8b/10b, PRBS gen'); b('pma_tx', 300, 20, 'TX PMA', 'serializer');
+        b('pcs_rx', 120, 110, 'RX PCS', 'comma, elastic buf'); b('pma_rx', 300, 110, 'RX PMA', 'CDR, deserializer');
+        A(g, 60, 45, 120, 45, 'acc'); A(g, 250, 45, 300, 45, 'acc'); A(g, 430, 45, 580, 45, 'acc');
+        A(g, 580, 135, 430, 135, 'acc'); A(g, 300, 135, 250, 135, 'acc'); A(g, 120, 135, 60, 135, 'acc');
+        T(g, 505, 38, 'TXP/N', 'sv-m', 'middle'); T(g, 505, 128, 'RXP/N', 'sv-m', 'middle');
+        fig.replaceChildren(g);
+        put(info, h('p', { style: 'margin:.6rem 0 .2rem;font-weight:600;color:var(--text)' }, GTPI[cur][0]), h('p', { style: 'margin:0;color:var(--text-dim)' }, GTPI[cur][1]));
+    }
+    add(root, h('p', { class: 'hint' }, 'Click a block.'), fig, info, h('div', { style: 'margin-top:.9rem' }, table(['Job', 'Built by hand in this course', 'Inside the GTP'], [
+        ['serializer', 'OSERDESE2, 8:1', 'PMA serializer, 16:1 or 20:1'], ['bit lock', 'IDELAY eye scan', 'CDR + equalizer'], ['word lock', 'training byte + BITSLIP', 'comma alignment (K28.5)'],
+        ['line code', 'none, raw bits', '8b/10b for DC balance and commas'], ['FIFO between clocks', 'async_fifo.vhd', 'elastic buffer with clock correction'], ['PRBS test', 'tx_pattern + prbs7_checker', 'built-in generators and checkers']
+    ])));
+    draw();
+}
+
+/* ---------- 7.2 line rates from 125 MHz ---------- */
+function legalRates() {
+    const set1 = new Set();
+    for (const n1 of [4, 5]) for (const n2 of [1, 2, 3, 4, 5]) for (const m of [1, 2]) {
+        const vco = 125 * n1 * n2 / m;
+        if (vco < 1600 || vco > 3300) continue;
+        for (const d of [1, 2, 4, 8]) { const r = 2 * vco / d / 1000; if (r >= 0.5 && r <= 6.25) set1.add(r); }
+    }
+    return [...set1].sort((a, b) => a - b);
+}
+function vRateCalc(root) {
+    let n1 = 5, n2 = 4, m = 1, d = 2;
+    const out = h('div', { class: 'kvs' }), note = h('div'), chips = h('div', { class: 'row', style: 'margin-top:.8rem' });
+    function draw() {
+        const vco = 125 * n1 * n2 / m, ok = vco >= 1600 && vco <= 3300, rate = 2 * vco / d / 1000;
+        put(out, kv('PLL clock', fmt(vco, 1) + ' MHz', ok ? 'ok' : 'bad'), kv('line rate', ok ? fmt(rate, 4) + ' Gb/s' : '—', ok ? 'acc' : 'bad'), kv('user clock (16 bit)', ok ? fmt(rate * 1000 / 16, 1) + ' MHz' : '—'));
+        put(note, !ok ? msg('The GTP PLL only runs between 1.6 and 3.3 GHz [[doc]].', 'bad')
+            : rate > 6.25 ? msg('IBERT refuses more than 6.25 Gb/s for this part [[viv]].', 'bad')
+            : rate === 6.25 ? msg('6.25 Gb/s: the IBERT logic runs at 390.6 MHz; the default implementation strategy misses timing by 28 ps, Performance_ExplorePostRoutePhysOpt meets it (+0.106 ns) [[viv]].', 'acc')
+            : msg('line rate = 2 × 125 MHz × N1 × N2 / (M × D).', 'ok'));
+        put(chips, h('span', { class: 'seg-l' }, 'all legal rates (Gb/s):'), legalRates().map(r => h('span', { class: 'tag', style: Math.abs(r - rate) < 1e-9 && ok ? 'color:var(--accent);border-color:var(--accent-line)' : '' }, String(r))));
+    }
+    add(root, h('div', { class: 'row' }, seg('N1', [[4, '4'], [5, '5']], n1, v => { n1 = v; draw(); }), seg('N2', [1, 2, 3, 4, 5].map(x => [x, String(x)]), n2, v => { n2 = v; draw(); })),
+        h('div', { class: 'row' }, seg('M', [[1, '1'], [2, '2']], m, v => { m = v; draw(); }), seg('D', [1, 2, 4, 8].map(x => [x, String(x)]), d, v => { d = v; draw(); })), out, note, chips);
+    draw();
+}
+
+/* ---------- 7.3 Lab 4 results ---------- */
+function vLab4Results(root) {
+    add(root,
+        h('p', { class: 'h4' }, 'The four lanes'),
+        table(['Cage', 'GT channel', 'TX P/N', 'RX P/N', 'TX_DIS', 'LOSS'], [
+            ['SFP1', 'X0Y4', 'B4 / A4', 'B8 / A8', 'A15', 'B15'], ['SFP2', 'X0Y5', 'D5 / C5', 'D11 / C11', 'A16', 'B16'],
+            ['SFP3', 'X0Y6', 'B6 / A6', 'B10 / A10', 'A13', 'C14'], ['SFP4', 'X0Y7', 'D7 / C7', 'D9 / C9', 'A14', 'C15']
+        ], { mono: [1, 2, 3, 4, 5] }),
+        msg('X0Y0 to X0Y3 (quad 213) exist on the die but have no pins in this package, which is why the lanes start at X0Y4 [[viv]]. TX_DIS is active high: drive it low or the lasers stay off.'),
+        h('p', { class: 'h4' }, 'IBERT builds'),
+        table(['Line rate', 'System clock', 'Strategy', 'WNS', 'WHS', 'Result'], [
+            ['2.5 Gb/s', '200 MHz', 'default', '+2.75 ns', '+0.07 ns', h('span', { class: 'pass' }, 'met')],
+            ['2.5 Gb/s', '125 MHz GT', 'default', '+2.49 ns', '+0.04 ns', h('span', { class: 'pass' }, 'met')],
+            ['5.0 Gb/s', '200 MHz', 'default', '+0.38 ns', '+0.04 ns', h('span', { class: 'pass' }, 'met')],
+            ['6.25 Gb/s', '200 MHz', 'default', '−0.028 ns', '', h('span', { class: 'fail' }, 'not met')],
+            ['6.25 Gb/s', '200 MHz', 'Performance_ExplorePostRoutePhysOpt', '+0.11 ns', '+0.06 ns', h('span', { class: 'pass' }, 'met')]
+        ], { mono: [3, 4] }),
+        msg('Every row is a Vivado 2023.2 build for `xc7a100tfgg484-2` [[viv]]: about 4,000 LUTs and 10,600 flip-flops, all four GTP channels. The GT sites and pins in the table above were read back from the routed design. On the board, still to do [[hw]]: near-end PMA loopback needs no module; for external loopback use two SFP modules and a fiber, or a DAC cable.'));
+}
+
+/* ---------- 8 summary ---------- */
+function vSummary(root) {
+    add(root, table(['Lab', 'What it shows', 'Checked with'], [
+        ['1', 'serializer and deserializer from shift registers; bitslip word alignment', 'GHDL 6.0 + Vivado xsim: PASS [[sim]]'],
+        ['2', 'OSERDESE2 / ISERDESE2 / IDELAYE2 facts: bit order, DDR bitslip, latency, the eye', 'Vivado xsim with UNISIM models: 10 checks PASS [[sim]]'],
+        ['3', 'a trained 400 Mb/s link on J11 with eye scan, PRBS-7, a FIFO between crystals, a narrator', 'full-board simulation: 17 checks PASS [[sim]]; builds at 400 and 1200 Mb/s [[viv]]'],
+        ['4', 'GTP lanes on the SFP+ cages with IBERT', 'builds at 2.5, 5.0 and 6.25 Gb/s [[viv]]']
+    ], { mono: [0] }),
+        h('p', { class: 'h4' }, 'Next'),
+        h('ul', { class: 'c-notes' }, [
+            'Run Labs 3 and 4 on the board and add the measured eyes here [[hw]].',
+            'Receive without a shared clock: drive the transmitter from the 125 MHz crystal and watch the eye drift; then oversample (Xilinx XAPP523).',
+            'A source-synchronous LVDS receiver with BUFIO and BUFR (Xilinx XAPP1017).',
+            'SpaceWire: Data-Strobe encoding and credit-based flow control on top of the same ideas.'
+        ].map(t => h('li', null, rich(t)))),
+        h('div', { class: 'head-links' },
+            h('a', { class: 'btn btn-primary', href: 'https://github.com/BerkmKuzu1/Serdes-Practice', target: '_blank', rel: 'noopener' }, 'Get the labs'),
+            h('a', { class: 'btn', href: 'projects.html' }, 'More projects')));
+}
+
+/* ======================================================================
+   The course
+   ====================================================================== */
+const S = (d, r, f) => ({ d, r, f });          // source chip: document, reference, repo file
+const UG471 = r => S('UG471', r), UG472 = r => S('UG472', r), DS181 = r => S('DS181', r), UG482 = r => S('UG482', r);
+const RP = f => S('repo', f, f);
+
+const CH = [
+  { t: 'Start here', k: 'what this course is', screens: [
+    { t: 'Learn SerDes by building one', v: vIntro,
+      plain: 'A SerDes turns a parallel word into a fast stream of bits on one wire, and back again. This course goes from two shift registers to the gigabit transceivers of an FPGA.',
+      notes: ['**Who it is for:** anyone who knows a little VHDL or Verilog and wants to understand how fast serial links really work, me included.',
+        '**The board:** ALINX AX7101, an Artix-7 XC7A100T-2FGG484I with a 200 MHz and a 125 MHz crystal, header J11 and four SFP+ cages.',
+        '**Honest labels:** every result carries a tag: [[sim]] for a simulation run, [[viv]] for a Vivado build report, [[doc]] for a datasheet or user guide, [[est]] for a model or a rule of thumb, and [[hw]] for what still waits for the board.',
+        '**Keys:** ← and → move between screens. Each figure reacts to buttons and sliders.'],
+      repo: 'Everything here comes from the open repository **Serdes Practice**: four labs in VHDL, narrated testbenches, a build script and a PC narrator. Clone it into a short ASCII path; Vivado dislikes paths like `Masaüstü`.',
+      src: [RP('README.md')] }
+  ] },
+  { t: 'What a SerDes is', k: 'parallel vs serial, clocks, the receiver\'s problems', screens: [
+    { t: 'Why not eight wires?', v: vParallel,
+      plain: 'Eight runners leave together but never arrive together. The faster they run, the less waiting the finish line can afford.',
+      notes: ['**Skew:** eight traces never have exactly the same delay. All eight bits must be stable at the same moment, so the skew comes straight out of the bit time.',
+        '**More pins, more noise:** eight lines plus a clock per direction, and many outputs switching at once.',
+        '**One serial line has no lane-to-lane skew.** It can run much faster, as long as the receiver can find each bit on its own (Chapter 5).',
+        'Move the sliders: at 400 Mb/s per wire (2.5 ns per bit) 2 ns of skew already leaves no safe moment.'],
+      terms: [['skew', 'difference in arrival time between signals that should arrive together'], ['UI', 'unit interval: the time of one bit, 1 / line rate']],
+      src: [RP('docs/1-serdes-basics.md')] },
+    { t: 'The serializer is a shift register', v: vShift,
+      plain: 'Load the whole word into a row of boxes, then push the row one box to the right per tick. Whatever falls out of the end goes onto the wire.',
+      notes: ['Every 8 bit clocks the register **loads** a new word; in between it **shifts**.',
+        'Which bit goes first is a convention. Here it is **bit 0 first (LSB first)**, like a UART, and like OSERDESE2 with `D1 = word(0)` in Lab 3.',
+        'The deserializer is the same thing backwards: shift the line in, hand out the register every 8 bits.'],
+      repo: '`lab1_rtl/ser8.vhd` is exactly this register: `count` runs 0 to 7, `count = 7` loads, otherwise `shreg <= \'0\' & shreg(7 downto 1)`.',
+      src: [RP('lab1_rtl/ser8.vhd'), RP('lab1_rtl/des8.vhd')] },
+    { t: 'Clocks and rates', v: vRates,
+      plain: 'The bit clock is the drummer, the word clock is the bar line. In DDR the drummer hits on the beat and between beats, so the beat itself only needs half the tempo.',
+      notes: ['**Line rate:** bits per second on the wire. **UI:** the time of one bit (2.5 ns at 400 Mb/s).',
+        '**SDR / DDR:** one bit per clock period, or one on each edge. The 7-series SerDes blocks run DDR, so 400 Mb/s needs a 200 MHz bit clock.',
+        '**Word clock** = line rate / 8 for an 8:1 SerDes. In DDR mode `CLKDIV = CLK / 4`, edges aligned.'],
+      terms: [['CLK', 'the fast clock of OSERDESE2 / ISERDESE2'], ['CLKDIV', 'the slow, divided clock that moves the parallel words']],
+      src: [UG471('OSERDESE2, ISERDESE2'), RP('docs/1-serdes-basics.md')] },
+    { t: 'The receiver has four questions', v: vProblems,
+      plain: 'The sender just talks. The listener has to find the rhythm, the start of each word and a pace of its own, and catch every mistake.',
+      notes: ['**When to sample** (bit lock), **where a word starts** (word lock), **which clock** the data lives on afterwards (clock domain crossing), and **is it right** (error detection).',
+        'Every serial link answers the same four, from a UART to a 6 Gb/s transceiver. A UART answers the first two with a start bit and a known baud rate.',
+        'The rest of the course takes them one by one, first by hand, then with the silicon.'],
+      src: [RP('docs/1-serdes-basics.md')] },
+    { t: 'Check yourself', v: quiz([
+        ['At 400 Mb/s in DDR mode, what is the bit clock of an 8:1 SerDes?', ['400 MHz', '200 MHz', '50 MHz', '100 MHz'], 1, 'DDR sends a bit on both edges: 400 / 2 = 200 MHz. The word clock is 400 / 8 = 50 MHz.'],
+        ['Why does a wide parallel bus stop working at high rates?', ['the wires get hot', 'skew between the wires eats the bit time', 'it needs 8b/10b coding', 'the receiver cannot count to eight'], 1, 'All bits must be valid together; the skew between lanes comes straight out of each unit interval.'],
+        ['Which receiver question does a UART answer with its start bit?', ['bit lock and word lock', 'clock domain crossing', 'error detection', 'none'], 0, 'The falling edge of the start bit tells it where the word starts, and the known baud rate tells it to sample in the middle of each bit.']
+      ]) }
+  ] },
+  { t: 'Lab 1: SerDes from scratch', k: 'two shift registers and a bitslip', screens: [
+    { t: 'ser8, a wire, des8', v: vLab1,
+      plain: 'Two shift registers and a wire in between. The testbench narrates and measures what crosses the wire.',
+      notes: ['The bit clock runs at **400 MHz**, so the line carries 400 Mb/s and a word passes every 20 ns: the same numbers as the board in Lab 3.',
+        'The wire **delays every bit by 3.4 bit times**, so the receiver\'s word boundary does not line up with the sender\'s.',
+        'The testbench can **flip one bit** on the wire, and it checks its own results: it ends with `LAB 1 PASSED` or `FAILED`.'],
+      repo: 'Run it with `python tools/run.py sim lab1` (Vivado xsim) or `--ghdl`. No vendor primitives: any VHDL-2008 simulator works.',
+      src: [RP('lab1_rtl/tb_lab1.vhd'), RP('lab1_rtl/README.md')] },
+    { t: 'Finding the words: BITSLIP', v: vAlign,
+      plain: 'Like reading a sentence with the spaces in the wrong places: every letter is right, the words are not. Shift where you cut until it reads right.',
+      notes: ['The deserializer counts to 8 from wherever it happened to start. Started mid-word, it outputs **rotated** copies of the data.',
+        '**Word alignment:** the sender repeats a training byte; the receiver pulses `bitslip` (skip one count) until the byte reads back unchanged.',
+        'The training byte must look **different in all 8 rotations**. x"F0" does; x"AA" reads back the same after 2, 4 or 6 slips. Try it.'],
+      repo: 'In the simulation the receiver starts with x"87" (x"F0" rotated by 5) and needs **3 bitslips**: x"C3", x"E1", x"F0" [[sim]].',
+      src: [RP('lab1_rtl/des8.vhd'), RP('lab1_rtl/tb_lab1.vhd')] },
+    { t: 'What Lab 1 checked', v: vLab1Results,
+      plain: 'Five small experiments, each with a pass or fail verdict printed by the testbench itself.',
+      notes: ['A flipped bit is **invisible** to the deserializer: "SerDes" simply becomes "SerEes". Catching it needs parity, a CRC or a known pattern.',
+        'After a stray bitslip every bit is still right but every character is wrong: word alignment matters as much as the bits.'],
+      src: [RP('lab1_rtl/README.md')] }
+  ] },
+  { t: 'Lab 2: the Artix-7 primitives', k: 'OSERDESE2, ISERDESE2, IDELAYE2 measured', screens: [
+    { t: 'The I/O tile', v: vTile,
+      plain: 'Every pin has its own small workshop next to it: buffers, a delay line and a serializer and deserializer, all clocked from the same source.',
+      notes: ['**OSERDESE2** (8:1) and **ISERDESE2** (1:8) sit in the I/O logic of each pin, next to its buffers.',
+        '**IDELAYE2** delays the input in 32 taps; **IDELAYCTRL** keeps the taps calibrated against a 200 MHz reference.',
+        'Lab 2 simulates the Xilinx models of all four at 400 Mb/s and measures what the user guide says.'],
+      src: [UG471('chapters 2 and 3'), RP('lab2_primitives/tb_lab2.vhd')] },
+    { t: 'D1 goes first, Q8 comes first', v: vBitOrder,
+      plain: 'The sender reads its word from the left, the receiver writes from the right. Agree on that and the word survives the trip.',
+      notes: ['**OSERDESE2 sends D1 first**: in Lab 2 D8 left the pin exactly 7 bit times (17.5 ns) after D1 [[sim]].',
+        '**ISERDESE2 puts the first received bit on Q8**, the last on Q1: x"F0" reads back as `Q8..Q1 = 00001111` [[sim]], the order UG471 gives [[doc]].',
+        'So Lab 3 wires `D(i+1) = word(i)` and reads back `word(i) = Q(8−i)`: bit 0 stays first end to end.'],
+      src: [UG471('ISERDESE2 outputs Q1 to Q8'), RP('lab2_primitives/tb_lab2.vhd'), RP('lab3_ax7101/rtl/serdes_rx.vhd')] },
+    { t: 'BITSLIP in DDR mode', v: vBitslipDDR,
+      plain: 'You expect one step per press; this dial jumps three steps forward and one back. It still reaches every position.',
+      notes: ['In DDR mode BITSLIP does **not** move the boundary one bit each time. Lab 2 measured **+3, −1, +3, −1, …** (in our "bits late" convention) [[sim]]; UG471 describes the same alternation [[doc]].',
+        'Eight pulses still visit all eight positions, so "slip until the training byte appears" works.',
+        '**Rules:** leave at least 3 CLKDIV cycles between pulses, and ignore the words right after one: Lab 2 saw one odd word pass by after a pulse [[sim]].'],
+      src: [UG471('Bitslip Operation'), RP('lab2_primitives/README.md')] },
+    { t: 'Latency and reset', v: vLatency,
+      plain: 'A word enters, waits in a few registers, travels the wire and comes out four word clocks later.',
+      notes: ['**Reset:** keep RST of OSERDESE2 and ISERDESE2 high while CLK and CLKDIV start, release it in step with CLKDIV.',
+        '**IDELAYCTRL** needs a running reference clock, a reset pulse and time to calibrate; its RDY says when the taps can be trusted (model: 12.6 ns; silicon: up to 3.67 µs) [[sim]] [[doc]].',
+        '**Clocks:** CLK and CLKDIV from one MMCM through the same kind of buffer (BUFG + BUFG in Lab 3) [[doc]].'],
+      src: [UG471('ISERDESE2 latencies'), DS181('IDELAYCTRL')] },
+    { t: 'What Lab 2 measured', v: vLab2Results,
+      plain: 'Six facts about the primitives, each measured in the simulation and checked against the user guide.',
+      notes: ['The eye in Step 6 only appears because the testbench moves every edge by up to **±250 ps** at random. A simulated line without jitter has no bad tap at all: Lab 3\'s RX A, which reads its own pad, scans as 32 dots.',
+        'The scan counts errors over 2,000 bits per tap. Its widest clean run is 17 taps (1326 ps of the 2500 ps bit), so the best tap is 23.'],
+      src: [RP('lab2_primitives/README.md')] },
+    { t: 'Check yourself', v: quiz([
+        ['ISERDESE2 receives the bits 0,0,0,0,1,1,1,1 (in time order). What does Q8..Q1 show?', ['11110000', '00001111', '10101010', '00000000'], 1, 'The first bit lands on Q8, so Q8..Q1 lists the bits in arrival order: 00001111.'],
+        ['How do BITSLIP pulses move the word boundary in DDR mode?', ['+1 bit every time', '+3 and −1 bits, alternating', 'a random amount', 'they do not move it'], 1, 'Measured in Lab 2: 3 bits one way, 1 bit the other, in turn. Eight pulses still visit every position.'],
+        ['How long is one IDELAYE2 tap with a 200 MHz IDELAYCTRL reference?', ['5 ns', '1 ns', '78 ps', '10 ps'], 2, '1 / (32 × 2 × 200 MHz) = 78.125 ps; 32 taps cover 2.5 ns, one bit at 400 Mb/s.']
+      ]) }
+  ] },
+  { t: 'Buffers on the line', k: 'I/O, clock and data buffers', screens: [
+    { t: 'Three kinds of buffer', v: vBuffers3,
+      plain: 'One word, three meanings: the pin\'s driver, the clock\'s distribution tree, and the queue that holds data while someone is busy.',
+      notes: ['**I/O buffers** turn bits into voltages and back: IBUF, OBUF, IOBUF, IBUFDS, IBUFDS_GTE2.',
+        '**Clock buffers** spread a clock to thousands of flip-flops at the same moment: BUFG, BUFH, BUFIO, BUFR.',
+        '**Data buffers** hold data in time: the SerDes registers, pipeline registers, FIFOs, elastic buffers.'],
+      src: [RP('docs/2-buffers-on-the-line.md')] },
+    { t: 'I/O buffers and header J11', v: vJ11,
+      plain: 'The pin decides what the line can be. J11\'s banks run at 3.3 V, which rules some standards in and some out.',
+      notes: ['IOSTANDARD, DRIVE and SLEW live in the XDC. Lab 3 sets J11 pin 3 to **LVCMOS33, DRIVE 16, SLEW FAST**; slow edges eat the unit interval.',
+        'Every J11 line has a **33 Ω series resistor** on the carrier board: less ringing, slightly slower edges.',
+        'Banks 15 and 16 sit at a fixed 3.3 V, so **LVDS outputs are impossible** on J11; LVDS inputs work with care [[doc]].'],
+      src: [S('AX7101 manual', 'J11'), DS181('Table 1'), RP('lab3_ax7101/constraints/ax7101_serdes.xdc')] },
+    { t: 'Clock buffers', v: vClockBufs,
+      plain: 'A clock is an announcement to every flip-flop. BUFG speaks to the whole chip, BUFIO only to one bank, but fast.',
+      notes: ['ISERDESE2 and OSERDESE2 need CLK and CLKDIV with aligned edges, from one source.',
+        '**Lab 3 uses BUFG + BUFG from one MMCM:** any pin works and the fabric logic can run on CLKDIV too. BUFG\'s 628 MHz limit allows up to 1.25 Gb/s in DDR [[doc]].',
+        'The classic **source-synchronous** receiver uses BUFIO for CLK and BUFR ÷4 for CLKDIV, both in the bank of the data pins.'],
+      src: [UG472('BUFG, BUFIO, BUFR'), UG471('NETWORKING Interface Type'), DS181('Tables 32 to 34')] },
+    { t: 'A FIFO between two clocks', v: vFIFO,
+      plain: 'A FIFO is a waiting room: it absorbs a rush, but if the doctor is slower than the arrivals the room fills up anyway.',
+      notes: ['Writer and reader each keep a pointer; each sends it to the other side in **Gray code** through two flip-flops. Gray code changes one bit per step, so a pointer caught mid-change is old or new, never garbage.',
+        'Pointers are one bit wider than the address to tell **full** from **empty**; a pointer seen from the other side is a few cycles old, which only makes the FIFO look fuller or emptier: safe.',
+        '**Sizing:** with R_in > R_out the FIFO overflows after **depth / (R_in − R_out)**. A buffer absorbs bursts, it cannot fix a slow reader. The cure is flow control (credits, `TREADY`) or a faster reader.'],
+      repo: 'Lab 3 writes RX A\'s 50 MB/s into a 1024-entry FIFO read on the **other crystal**. The `f` command slows the consumer to 62.5, 31.25 or 15.6 MB/s.',
+      src: [RP('lab3_ax7101/rtl/async_fifo.vhd'), RP('lab3_ax7101/rtl/fifo_consumer.vhd')] },
+    { t: 'Two crystals are never equal', v: vPPM,
+      plain: 'Two clocks that both say 125 MHz still disagree a little. Over millions of words that little becomes a full or an empty buffer.',
+      notes: ['Oscillators are specified in **ppm**. 100 ppm at 125 MB/s is **12,500 bytes per second** of drift: a 1024-entry FIFO would overflow within a tenth of a second.',
+        '**Elastic buffer + clock correction:** the sender regularly inserts skip symbols, the receiver drops or repeats them to keep the level in the middle.',
+        'Lab 3 experiment 8: at 1000 Mb/s the link brings exactly the 125 MB/s the consumer can take, from a different crystal: the FIFO level slowly drifts [[hw]].'],
+      src: [UG482('RX elastic buffer, clock correction'), RP('docs/2-buffers-on-the-line.md')] }
+  ] },
+  { t: 'Receiving fast data', k: 'the eye, bit lock, word lock, PRBS', screens: [
+    { t: 'The eye', v: vEye,
+      plain: 'Draw thousands of bits on top of each other: where they all agree, an eye opens. Sample in its middle.',
+      notes: ['The edges wander: **jitter** from noise, crosstalk and the bits before (inter-symbol interference). The flip-flop also needs setup and hold time around its clock edge.',
+        'What is left in the middle is the window where sampling is safe. A good receiver samples in its **center**.',
+        'At 400 Mb/s the UI is 2.5 ns. Lab 2 adds ±250 ps of jitter in simulation [[sim]]; header J11 adds its own on the board [[hw]].'],
+      src: [RP('docs/3-receiving-fast-data.md')] },
+    { t: 'Bit lock: scanning the eye', v: vScan,
+      plain: 'Walk the sampling point across the bit in small steps and count mistakes at each step. Park in the middle of the quiet zone.',
+      notes: ['**IDELAYE2** delays the data in 78 ps steps, which moves the sampling point. For each tap: set it, wait, count PRBS-7 errors over a window.',
+        'The board counts **2,097,152 bits per tap** (2^18 words); the simulation 512. Then it parks the delay in the **middle of the widest error-free run**.',
+        'At 400 Mb/s the 32 taps cover exactly one bit (32 × 78 ps = 2.5 ns), so the scan sees one bit edge. At 800 Mb/s it covers two bits and shows two edges.'],
+      repo: '`eye_scanner.vhd` is this loop in hardware; it runs on both receivers at start-up and on the `1` and `2` commands.',
+      src: [RP('lab3_ax7101/rtl/eye_scanner.vhd'), DS181('IDELAY resolution')] },
+    { t: 'Word lock', v: vWordLock,
+      plain: 'Once every bit is right, find where the words start: by a training phase, by a pattern that cannot be confused, or by a header.',
+      notes: ['Labs 1 to 3 use a **training byte + BITSLIP**: simple, but both ends must agree on when to train.',
+        'Transceivers use **comma characters**: 8b/10b\'s K28.5 cannot appear inside data, so alignment can happen at any moment.',
+        'Aligning words is hopeless while the sampling point sits on the edges: **bit lock first, then word lock**.'],
+      src: [RP('lab3_ax7101/rtl/word_aligner.vhd')] },
+    { t: 'PRBS: proving every bit', v: vPRBS,
+      plain: 'A pseudo-random pattern that the receiver can predict from what it has just received. Every surprise is an error.',
+      notes: ['**PRBS-7** (polynomial x^7 + x^6 + 1) repeats every 127 bits and contains every 7-bit pattern except all zeros.',
+        'A **self-synchronizing checker** predicts each bit as the XOR of the bits 6 and 7 before it: no seed, no lock time, no word alignment.',
+        '**Error multiplication:** one wrong bit is counted 3 times. **The dead-line trap:** all zeros satisfy 0 = 0 xor 0, so a dead line reports no errors; a loss-of-signal detector is required.'],
+      repo: '`prbs7_checker.vhd` flags 64 words of x"00" or x"FF" in a row as loss of signal: real PRBS-7 never has 8 equal bits in a row.',
+      src: [RP('lab3_ax7101/rtl/prbs7_checker.vhd')] },
+    { t: 'How good is "no errors"?', v: vBER,
+      plain: 'Zero mistakes in a short test proves little. The longer you watch without a mistake, the smaller the error rate you may claim.',
+      notes: ['The **bit error ratio** is errors / bits. With **no** errors in N bits, the honest statement is a bound: with 95 % confidence, BER < 3 / N.',
+        'Claiming BER < 1e-12 at 400 Mb/s takes about 2 hours of error-free running.'],
+      src: [RP('docs/3-receiving-fast-data.md'), RP('tools/narrator.py')] },
+    { t: 'Check yourself', v: quiz([
+        ['A PRBS-7 checker reports 0 errors. What else must be true before you trust it?', ['the line must be idle', 'there must be signal: no loss of signal', 'the eye scan must be off', 'nothing'], 1, 'All zeros satisfy the PRBS-7 recurrence, so a dead line also reports 0 errors. Check loss of signal too.'],
+        ['One bit flips on the line. How many errors does a self-synchronizing PRBS-7 checker count?', ['1', '2', '3', '7'], 2, 'The bit itself, and the two later predictions that use it (6 and 7 bits later).'],
+        ['You checked 3 × 10^9 bits without an error. What can you claim (95 % confidence)?', ['BER = 0', 'BER < 1e-9', 'BER < 1e-12', 'nothing'], 1, '3 / N = 3 / (3 × 10^9) = 1e-9.']
+      ]) }
+  ] },
+  { t: 'Lab 3: the link on the board', k: '400 Mb/s through J11, trained and narrated', screens: [
+    { t: 'The design', v: vLab3Block,
+      plain: 'The FPGA talks to itself through one pin and a jumper, checks every bit, and tells you about it over USB.',
+      notes: ['**TX:** OSERDESE2 at 400 Mb/s on J11 pin 3. **RX A** reads the same pin back through its own input buffer; **RX B** sits at the other end of a jumper on pin 5.',
+        'RX A also feeds an **async FIFO** to a consumer on the independent **125 MHz crystal**.',
+        'A controller trains the link and takes one-letter commands; a **narrator** prints everything over the USB-UART.'],
+      repo: 'Line rates of 200, 400, 600, 800, 1000 and 1200 Mb/s are one build option: `python tools/run.py build --rate 800`.',
+      src: [RP('lab3_ax7101/README.md'), RP('lab3_ax7101/rtl/ax7101_serdes_top.vhd')] },
+    { t: 'Link training at start-up', v: vTraining,
+      plain: 'Like tuning a radio: first find the station (the eye), then find where the sentences start (the words).',
+      notes: ['The start-up is a small step list in `lab_controller.vhd` called **BOOT_PROG**: bit lock on A and B, then word lock on both, then PRBS-7 with cleared counters.',
+        'In the simulation A\'s internal path shows a perfect eye and B\'s jittery jumper a 4-tap edge region; both align after 7 bitslips [[sim]].'],
+      src: [RP('lab3_ax7101/rtl/lab_controller.vhd')] },
+    { t: 'The board talks', v: vTerminal,
+      plain: 'The FPGA narrates in plain sentences and hex numbers; the testbench plays the person at the keyboard.',
+      notes: ['Numbers are **hex** to keep the FPGA simple: `tap 10` is tap 16. `tools/narrator.py` converts them, adds the BER bound and explains each kind of line.',
+        'Watch the FIFO line at busy 6/8: `level 400 max 400 overflow 0000127C … bad 00000F9B`: full, 4,732 bytes lost, 3,995 broken bytes seen [[sim]].',
+        'After `e` the FIFO line also shows `bad 00000001`: the flipped bit spoils exactly one byte, while each PRBS checker counts it 3 times.'],
+      src: [RP('lab3_ax7101/tb/tb_lab3.vhd'), RP('lab3_ax7101/rtl/narrator.vhd')] },
+    { t: 'The tests that ran', v: vLab3Results,
+      plain: 'Seventeen checks on the whole design in simulation, two builds for the real chip, and four lessons from the tools.',
+      notes: ['The simulation runs the **same RTL** as the bitstream, with both crystals, a 700 ps jumper with ±150 ps of random jitter, and a scripted terminal session. It takes about 4 minutes in xsim.',
+        '`python tools/run.py sim lab3 --no-jumper` runs it again without the jumper: then B must report no signal.'],
+      src: [RP('lab3_ax7101/tb/tb_lab3.vhd'), RP('tools/build.tcl')] },
+    { t: 'Run it on your board', v: vBoard,
+      plain: 'One jumper, one build, one click to program, and a terminal.',
+      notes: ['Without the jumper RX B reports `los 1`; everything else still works.',
+        'Then the experiments from the Lab 3 README: compare the two eyes, pull the jumper, wiggle a long wire, press `e`, `t`, `b`, `a`, slow the consumer with `f`, and rebuild at 800, 1000 and 1200 Mb/s.'],
+      src: [RP('lab3_ax7101/README.md')] },
+    { t: 'Check yourself', v: quiz([
+        ['Why does Lab 3 run the eye scan before the word alignment?', ['it is faster', 'word alignment fails while sampling on the bit edges', 'the UART needs it', 'no reason'], 1, 'Bit lock first: only with a clean sampling point do the training bytes arrive intact.'],
+        ['At busy 6/8 the consumer takes 31.25 MB/s and the link brings 50 MB/s. How long until a 1024-byte FIFO is full?', ['never', 'about 55 µs', 'about 1 s', 'about 1 ms'], 1, '1024 bytes / (50 − 31.25) MB/s ≈ 55 µs.'],
+        ['Why can RX A work with nothing connected to J11?', ['it reads its own pin through the pin\'s input buffer', 'it uses the GTP', 'it is simulated only', 'it uses the UART'], 0, 'The IOBUF drives the pad and the same pad\'s input buffer reads it back.']
+      ]) }
+  ] },
+  { t: 'Lab 4: gigabits with the GTPs', k: 'IBERT on the SFP+ cages', screens: [
+    { t: 'Inside a GTP', v: vGTP,
+      plain: 'Everything this course built by hand, done in hardware and a lot faster.',
+      notes: ['The XC7A100T in this package has **four GTP transceivers** (quad 216, channels X0Y4 to X0Y7), wired to the four SFP+ cages, sharing the 125 MHz reference clock on F6/E6.',
+        'Bit lock becomes **CDR**, word lock becomes **comma alignment**, the FIFO becomes the **elastic buffer**, and PRBS generators and checkers are built in.'],
+      src: [UG482('GTP transceivers'), RP('lab4_ibert/README.md')] },
+    { t: 'Line rates from 125 MHz', v: vRateCalc,
+      plain: 'The transceiver multiplies the reference clock up to a few GHz and divides it down to the line rate. Only some combinations exist.',
+      notes: ['**line rate = 2 × 125 MHz × N1 × N2 / (M × D)**, with the PLL between 1.6 and 3.3 GHz [[doc]].',
+        'The board manual quotes 6.6 Gb/s, but IBERT stops at **6.25 Gb/s** for this wire-bond package and speed grade [[viv]].'],
+      src: [UG482('PLL'), RP('lab4_ibert/build_ibert.tcl')] },
+    { t: 'IBERT on the four lanes', v: vLab4Results,
+      plain: 'Program the board, open Vivado\'s Hardware Manager, loop a lane back, and watch the bit error ratio and a two-dimensional eye.',
+      notes: ['**Near-end PMA loopback** turns the data around inside the transceiver: no module needed. **External loopback:** two SFP modules and a fiber, or a DAC cable between SFP1 and SFP2.',
+        'IBERT\'s eye scan moves the sampling point in time **and** voltage; Lab 3\'s moved it in time only.',
+        'Build it with `python tools/run.py ibert --rate 2.5`; at 6.25 Gb/s the helper picks the stronger implementation strategy by itself.'],
+      src: [RP('lab4_ibert/README.md')] }
+  ] },
+  { t: 'What was verified', k: 'results, and what comes next', screens: [
+    { t: 'Results and next steps', v: vSummary,
+      plain: 'Four labs, each checked by a simulation or a build report. The board runs come next, and their eyes will be added here.',
+      notes: ['Every claim on these pages carries its evidence tag. What is tagged [[hw]] has not been measured yet.',
+        'The labs, the docs and all scripts are open source (MIT) on GitHub.'],
+      src: [RP('README.md'), RP('docs/4-next-steps.md')] }
+  ] }
+];
+
+/* ======================================================================
+   Navigation, state, rendering
+   ====================================================================== */
+const KEY = 'serdes-course-v1';
+const total = CH.reduce((n, c) => n + c.screens.length, 0);
+let st = { c: 0, s: 0, seen: {} };
+try {
+    const o = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (o && typeof o === 'object') {
+        if (Number.isInteger(o.c) && CH[o.c]) st.c = o.c;
+        if (Number.isInteger(o.s) && CH[st.c].screens[o.s]) st.s = o.s;
+        if (o.seen && typeof o.seen === 'object') st.seen = o.seen;
+    }
+} catch (e) { /* storage unavailable: start fresh */ }
+const fromHash = () => {
+    const m = /^#c(\d+)(?:-s(\d+))?$/.exec(location.hash);
+    if (!m) return false;
+    const c = Number(m[1]), sc = Number(m[2] || 1) - 1;
+    if (CH[c] && CH[c].screens[sc]) { st.c = c; st.s = sc; return true; }
+    return false;
+};
+fromHash();
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* ignore */ } }
+const keyOf = (c, sc) => c + '.' + sc;
+
+function go(c, sc) {
+    if (!CH[c] || !CH[c].screens[sc]) return;
+    st.c = c; st.s = sc;
+    render(true);
+}
+function step(d) {
+    let c = st.c, sc = st.s + d;
+    if (sc < 0) { c--; if (c < 0) return; sc = CH[c].screens.length - 1; }
+    else if (sc >= CH[c].screens.length) { c++; if (c >= CH.length) return; sc = 0; }
+    go(c, sc);
+}
+
+const navEl = document.getElementById('c-nav');
+const panel = document.getElementById('c-panel');
+
+function renderNav() {
+    put(navEl, CH.map((c, i) => {
+        const seen = c.screens.filter((_, j) => st.seen[keyOf(i, j)]).length;
+        return h('li', null, h('button', { type: 'button', 'aria-current': i === st.c ? 'step' : null, onclick: () => go(i, 0) },
+            h('span', { class: 'no' }, i === 0 ? '··' : String(i).padStart(2, '0')),
+            h('span', null, c.t),
+            h('span', { class: 'cnt' + (seen === c.screens.length ? ' done' : '') }, seen === c.screens.length ? '✓' : seen + '/' + c.screens.length)));
+    }));
+    // on narrow screens the chapter list scrolls sideways: keep the current one in view
+    const rail = navEl.parentElement, curBtn = navEl.querySelector('[aria-current]');
+    if (curBtn && rail.scrollWidth > rail.clientWidth) {
+        const a = curBtn.getBoundingClientRect(), b = rail.getBoundingClientRect();
+        rail.scrollLeft += (a.left + a.width / 2) - (b.left + b.width / 2);
+    }
+    const n = Object.keys(st.seen).length;
+    document.getElementById('prog-label').textContent = `${n} of ${total} screens seen`;
+    document.getElementById('prog-bar').style.width = (100 * n / total) + '%';
+}
+
+function srcChip(o) {
+    const inner = [h('b', null, o.d), ' · ' + o.r];
+    return o.f ? h('a', { class: 'chip-src', href: REPO + o.f, target: '_blank', rel: 'noopener' }, inner) : h('span', { class: 'chip-src' }, inner);
+}
+
+function renderMain() {
+    const ch = CH[st.c], sc = ch.screens[st.s];
+    const vis = h('div', { class: 'c-visual' });
+    const prevT = (() => { let c = st.c, x = st.s - 1; if (x < 0) { c--; if (c < 0) return null; x = CH[c].screens.length - 1; } return CH[c].screens[x].t; })();
+    const nextT = (() => { let c = st.c, x = st.s + 1; if (x >= ch.screens.length) { c++; if (c >= CH.length) return null; x = 0; } return CH[c].screens[x].t; })();
+    put(panel,
+        h('span', { class: 'c-kicker' }, st.c === 0 ? 'Introduction' : `Chapter ${st.c} of ${CH.length - 1}`),
+        h('h2', { class: 'c-title' }, ch.t),
+        ch.screens.length > 1 ? h('div', { class: 'c-steps', role: 'tablist', 'aria-label': 'Screens' }, ch.screens.map((x, j) =>
+            h('button', { type: 'button', class: (j === st.s ? 'cur' : st.seen[keyOf(st.c, j)] ? 'seen' : ''), 'aria-label': `Screen ${j + 1}: ${x.t}`, onclick: () => go(st.c, j) }))) : null,
+        h('p', { class: 'c-sno' }, `Screen ${st.s + 1} of ${ch.screens.length}`),
+        h('h3', { class: 'c-stitle' }, sc.t),
+        vis,
+        sc.plain ? h('p', { class: 'c-plain' }, h('b', null, 'In plain words'), h('span', null, rich(sc.plain))) : null,
+        sc.notes ? h('ul', { class: 'c-notes' }, sc.notes.map(n => h('li', null, rich(n)))) : null,
+        sc.repo ? h('div', { class: 'c-repo' }, h('b', null, 'In Serdes Practice'), rich(sc.repo)) : null,
+        sc.terms ? h('details', { class: 'c-terms' }, h('summary', null, 'Terms on this screen'), h('dl', null, sc.terms.map(([a, b]) => [h('dt', null, a), h('dd', null, b)]))) : null,
+        sc.src ? h('div', { class: 'c-src' }, h('span', null, 'Sources'), sc.src.map(srcChip)) : null,
+        h('div', { class: 'c-pager' },
+            h('button', { type: 'button', class: 'cbtn', disabled: prevT === null, onclick: () => step(-1) }, h('span', null, '← previous'), prevT || ''),
+            h('button', { type: 'button', class: 'cbtn pri', disabled: nextT === null, onclick: () => step(1) }, h('span', null, 'next →'), nextT || 'the end')),
+        h('p', { class: 'keys' }, h('kbd', null, '←'), ' ', h('kbd', null, '→'), ' move between screens'));
+    try { sc.v(vis); } catch (e) { vis.append(msg('This figure failed to draw: ' + e.message, 'bad')); }
+}
+
+function render(scroll) {
+    runClean();
+    st.seen[keyOf(st.c, st.s)] = 1;
+    renderMain();
+    renderNav();
+    save();
+    const hash = `#c${st.c}-s${st.s + 1}`;
+    if (location.hash !== hash) history.replaceState(null, '', hash);
+    if (scroll) {
+        const top = panel.getBoundingClientRect().top + window.scrollY - 90;
+        if (window.scrollY > top) window.scrollTo({ top, behavior: REDUCED ? 'auto' : 'smooth' });
+    }
+}
+
+document.addEventListener('keydown', e => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+});
+window.addEventListener('hashchange', () => { if (fromHash()) render(true); });
+
+render(false);
+})();
+</script>
+</body>
+</html>
