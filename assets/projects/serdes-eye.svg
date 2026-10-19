@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380" role="img" aria-labelledby="t d">
+<title id="t">SerDes eye diagram and eye-scan map</title>
+<desc id="d">An eye diagram of a 400 Mb/s line, and the 32-tap IDELAY eye scan of Lab 3 receiver B from the simulation: no errors except four taps at the bit edge, best tap 07.</desc>
+<rect width="600" height="380" fill="#111318"/>
+<g stroke="#222a36" stroke-width="1">
+<line x1="30" y1="58" x2="570" y2="58"/>
+<line x1="30" y1="206" x2="570" y2="206"/>
+</g>
+<polygon points="210.9,132.0 256.8,67 343.2,67 389.1,132.0 343.2,197 256.8,197" fill="#46c98a" fill-opacity="0.12" stroke="#46c98a" stroke-opacity="0.55" stroke-width="1.2"/>
+<g fill="none" stroke="#f59410" stroke-width="1.5" stroke-opacity="0.26" stroke-linejoin="round">
+<path d="M30.0 58.0 L385.1 58.0 L476.9 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L380.3 58.0 L472.1 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L118.2 206.0 L210.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L112.6 58.0 L204.4 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L123.8 206.0 L215.6 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L383.0 206.0 L474.8 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L103.7 206.0 L195.5 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L130.7 58.0 L222.5 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L95.2 206.0 L187.0 58.0 L361.5 58.0 L453.3 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L125.9 58.0 L217.7 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L364.3 206.0 L456.1 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L121.4 206.0 L213.2 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L129.8 58.0 L221.6 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L393.7 58.0 L485.5 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L435.0 58.0 L526.8 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L67.5 206.0 L159.3 58.0 L379.9 58.0 L471.7 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L361.7 58.0 L453.5 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L90.9 58.0 L182.7 206.0 L404.2 206.0 L496.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L171.0 58.0 L262.8 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L143.0 206.0 L234.8 58.0 L403.2 58.0 L495.0 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L101.4 206.0 L193.2 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L117.3 206.0 L209.1 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L416.5 206.0 L508.3 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L146.0 58.0 L237.8 206.0 L384.1 206.0 L475.9 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L111.8 58.0 L203.6 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L147.3 58.0 L239.1 206.0 L419.5 206.0 L511.3 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L365.8 206.0 L457.6 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L153.0 206.0 L244.8 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L358.0 206.0 L449.8 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L122.2 58.0 L214.0 206.0 L366.8 206.0 L458.6 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L107.0 206.0 L198.8 58.0 L360.1 58.0 L451.9 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L107.0 58.0 L198.8 206.0 L352.4 206.0 L444.2 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L143.8 206.0 L235.6 58.0 L398.0 58.0 L489.8 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L406.2 58.0 L498.0 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L369.9 58.0 L461.7 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L410.6 58.0 L502.4 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L144.2 58.0 L236.0 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L429.2 58.0 L521.0 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L404.4 206.0 L496.2 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L375.3 206.0 L467.1 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L103.5 206.0 L195.3 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L385.5 206.0 L477.3 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L100.8 58.0 L192.6 206.0 L368.6 206.0 L460.4 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L104.7 58.0 L196.5 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L122.4 58.0 L214.2 206.0 L420.4 206.0 L512.2 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L409.3 206.0 L501.1 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L136.3 58.0 L228.1 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L361.4 58.0 L453.2 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L384.7 58.0 L476.5 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L115.6 58.0 L207.4 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L402.4 206.0 L494.2 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L385.8 58.0 L477.6 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L386.4 58.0 L478.2 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L375.1 58.0 L466.9 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L433.0 58.0 L524.8 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L393.8 58.0 L485.6 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L163.3 58.0 L255.1 206.0 L398.7 206.0 L490.5 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L124.2 58.0 L216.0 206.0 L381.0 206.0 L472.8 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L105.8 206.0 L197.6 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L356.0 58.0 L447.8 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L113.2 206.0 L205.0 58.0 L387.7 58.0 L479.5 206.0 L570.0 206.0"/>
+<path d="M30.0 206.0 L109.9 206.0 L201.7 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L116.9 206.0 L208.7 58.0 L394.7 58.0 L486.5 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L171.9 58.0 L263.7 206.0 L353.8 206.0 L445.6 58.0 L570.0 58.0"/>
+<path d="M30.0 58.0 L570.0 58.0"/>
+<path d="M30.0 206.0 L570.0 206.0"/>
+<path d="M30.0 58.0 L362.5 58.0 L454.3 206.0 L570.0 206.0"/>
+</g>
+<line x1="300.0" y1="36" x2="300.0" y2="222" stroke="#46c98a" stroke-width="1.5" stroke-dasharray="4 4"/>
+<g font-family="ui-monospace,Cascadia Code,JetBrains Mono,Menlo,Consolas,monospace">
+<text x="300.0" y="30" fill="#46c98a" font-size="16" font-weight="700" text-anchor="middle">sample here</text>
+<text x="30" y="30" fill="#69727f" font-size="15">400 Mb/s</text>
+<text x="570" y="30" fill="#69727f" font-size="15" text-anchor="end">1 bit = 2.5 ns</text>
+<text x="36.8" y="250" fill="#b7bdc8" font-size="15">eye scan: 32 taps × 78 ps</text>
+<text x="563.2" y="250" fill="#f59410" font-size="15" text-anchor="end">errors</text>
+<text x="159.8" y="308" fill="#e8ecf2" font-size="15" text-anchor="middle">best tap</text>
+<text x="300" y="346" fill="#98a1af" font-size="15" text-anchor="middle">B |..............xxxx..............| tap 07</text>
+</g>
+<rect x="36.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="53.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="69.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="86.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="102.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="119.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="135.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="152.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="168.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="185.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="201.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="218.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="234.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="251.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="267.8" y="262" width="15" height="26" rx="3" fill="#f59410"/>
+<rect x="284.2" y="262" width="15" height="26" rx="3" fill="#f59410"/>
+<rect x="300.8" y="262" width="15" height="26" rx="3" fill="#f59410"/>
+<rect x="317.2" y="262" width="15" height="26" rx="3" fill="#f59410"/>
+<rect x="333.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="350.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="366.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="383.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="399.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="416.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="432.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="449.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="465.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="482.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="498.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="515.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="531.8" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="548.2" y="262" width="15" height="26" rx="3" fill="#46c98a" fill-opacity="0.8"/>
+<rect x="149.8" y="259.5" width="20" height="31" rx="4.5" fill="none" stroke="#e8ecf2" stroke-width="1.6"/>
+</svg>
