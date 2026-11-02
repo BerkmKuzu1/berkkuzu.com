@@ -360,7 +360,7 @@
     /* One giscus frame serves every project: a chip swaps the thread with a
        setConfig message instead of reloading the frame. Nothing is fetched
        from giscus.app until the section is about to scroll into view, or a
-       link points straight at a thread (projects.html?thread=vhdl). Without
+       link points straight at a thread (projects.html?thread=vhdl-2024). Without
        a category id there is nothing to load, so the plain link stays. */
     var threadRoot = document.getElementById("comment-thread");
     var topicsRoot = document.getElementById("comment-topics");
