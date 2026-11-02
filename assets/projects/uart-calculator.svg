@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380" role="img" aria-labelledby="t d">
+<title id="t">UART calculator: request, datapath and reply</title>
+<desc id="d">The task's example. The request BA CD 00 10 00 20 00 49 arrives on rx_i and passes uart_rx, msg_rx, alu, msg_tx and uart_tx; the reply AB CD 00 30 58 leaves on tx_o, so 16 + 32 = 48. The self-checking testbench passes 7 of 7 cases in GHDL and Questa.</desc>
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#69727f"/></marker>
+</defs>
+<rect width="600" height="380" fill="#111318"/>
+<g font-family="ui-monospace,Cascadia Code,JetBrains Mono,Menlo,Consolas,monospace" text-anchor="middle">
+<text x="30" y="40" font-size="14" fill="#b7bdc8" text-anchor="start">request &#183; rx_i</text>
+<g font-size="14">
+<text x="76" y="70" fill="#69727f">header</text>
+<text x="182" y="70" fill="#f59410">16</text>
+<text x="288" y="70" fill="#f59410">32</text>
+<text x="370" y="70" fill="#69727f">add</text>
+<text x="428" y="70" fill="#69727f">chk</text>
+</g>
+<g stroke-width="1.5">
+<rect x="30" y="80" width="44" height="36" rx="5" fill="#151a22" stroke="#2e3846"/>
+<rect x="78" y="80" width="44" height="36" rx="5" fill="#151a22" stroke="#2e3846"/>
+<rect x="136" y="80" width="44" height="36" rx="5" fill="#f59410" fill-opacity="0.1" stroke="#f59410"/>
+<rect x="184" y="80" width="44" height="36" rx="5" fill="#f59410" fill-opacity="0.1" stroke="#f59410"/>
+<rect x="242" y="80" width="44" height="36" rx="5" fill="#f59410" fill-opacity="0.1" stroke="#f59410"/>
+<rect x="290" y="80" width="44" height="36" rx="5" fill="#f59410" fill-opacity="0.1" stroke="#f59410"/>
+<rect x="348" y="80" width="44" height="36" rx="5" fill="#151a22" stroke="#2e3846"/>
+<rect x="406" y="80" width="44" height="36" rx="5" fill="#46c98a" fill-opacity="0.1" stroke="#46c98a"/>
+</g>
+<g font-size="16" font-weight="600">
+<text x="52" y="104" fill="#98a1af">BA</text>
+<text x="100" y="104" fill="#98a1af">CD</text>
+<text x="158" y="104" fill="#f59410">00</text>
+<text x="206" y="104" fill="#f59410">10</text>
+<text x="264" y="104" fill="#f59410">00</text>
+<text x="312" y="104" fill="#f59410">20</text>
+<text x="370" y="104" fill="#e8ecf2">00</text>
+<text x="428" y="104" fill="#46c98a">49</text>
+</g>
+<g fill="none" stroke="#2e3846" stroke-width="1.5">
+<path d="M30 122v6h420v-6"/>
+<path d="M314 256v-6h256v6"/>
+</g>
+<g stroke="#69727f" stroke-width="1.5" marker-end="url(#a)">
+<line x1="76" y1="128" x2="76" y2="164"/>
+<line x1="124" y1="189" x2="140" y2="189"/>
+<line x1="236" y1="189" x2="252" y2="189"/>
+<line x1="348" y1="189" x2="364" y2="189"/>
+<line x1="460" y1="189" x2="476" y2="189"/>
+<line x1="524" y1="212" x2="524" y2="248"/>
+</g>
+<g fill="#151a22" stroke="#2e3846" stroke-width="1.5">
+<rect x="30" y="168" width="92" height="42" rx="7"/>
+<rect x="142" y="168" width="92" height="42" rx="7"/>
+<rect x="254" y="168" width="92" height="42" rx="7" stroke="#f59410"/>
+<rect x="366" y="168" width="92" height="42" rx="7"/>
+<rect x="478" y="168" width="92" height="42" rx="7"/>
+</g>
+<g font-size="14" fill="#e8ecf2">
+<text x="76" y="194">uart_rx</text>
+<text x="188" y="194">msg_rx</text>
+<text x="300" y="194">alu</text>
+<text x="412" y="194">msg_tx</text>
+<text x="524" y="194">uart_tx</text>
+</g>
+<text x="300" y="234" font-size="15" fill="#f59410">16 + 32 = 48</text>
+<g stroke-width="1.5">
+<rect x="314" y="262" width="44" height="36" rx="5" fill="#151a22" stroke="#2e3846"/>
+<rect x="362" y="262" width="44" height="36" rx="5" fill="#151a22" stroke="#2e3846"/>
+<rect x="420" y="262" width="44" height="36" rx="5" fill="#f59410" fill-opacity="0.1" stroke="#f59410"/>
+<rect x="468" y="262" width="44" height="36" rx="5" fill="#f59410" fill-opacity="0.1" stroke="#f59410"/>
+<rect x="526" y="262" width="44" height="36" rx="5" fill="#46c98a" fill-opacity="0.1" stroke="#46c98a"/>
+</g>
+<g font-size="16" font-weight="600">
+<text x="336" y="286" fill="#98a1af">AB</text>
+<text x="384" y="286" fill="#98a1af">CD</text>
+<text x="442" y="286" fill="#f59410">00</text>
+<text x="490" y="286" fill="#f59410">30</text>
+<text x="548" y="286" fill="#46c98a">58</text>
+</g>
+<g font-size="14">
+<text x="360" y="318" fill="#69727f">header</text>
+<text x="466" y="318" fill="#f59410">48</text>
+<text x="548" y="318" fill="#69727f">chk</text>
+</g>
+<text x="570" y="346" font-size="14" fill="#b7bdc8" text-anchor="end">reply &#183; tx_o</text>
+<g text-anchor="start">
+<text x="30" y="266" font-size="14" fill="#69727f">self-checking testbench</text>
+<text x="30" y="294" font-size="20" font-weight="700" fill="#46c98a">7/7 PASS</text>
+<text x="30" y="318" font-size="14" fill="#98a1af">GHDL &#183; Questa</text>
+</g>
+</g>
+</svg>

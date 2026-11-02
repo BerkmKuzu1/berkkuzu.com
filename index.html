@@ -189,6 +189,34 @@
                     </a>
                 </li>
 
+                <li class="project-wide">
+                    <a class="card project-featured" href="https://github.com/BerkmKuzu1/2024-ANADOLOGIC-FIRST-INTERNSHIP-ACCEPTANCE-TASK" target="_blank" rel="noopener">
+                        <div class="project-copy">
+                            <div class="card-head">
+                                <h3>AnadoLogic Internship Task</h3>
+                                <span class="badge badge-accent">Internship</span>
+                            </div>
+                            <span class="project-subtitle mono">16-bit UART calculator &middot; VHDL-2008</span>
+                            <p>
+                                AnadoLogic's 2024 internship acceptance task: two signed 16-bit
+                                numbers arrive over UART, get added or subtracted, and the result
+                                goes back with a checksum. Bad or unknown messages get no reply.
+                            </p>
+                            <dl class="project-results">
+                                <div><dt>Testbench</dt><dd>7/7 passed</dd></div>
+                                <div><dt>Simulators</dt><dd>GHDL &middot; Questa</dd></div>
+                                <div><dt>UART</dt><dd>115200 8N1</dd></div>
+                            </dl>
+                            <ul class="tags"><li>VHDL</li><li>UART</li><li>FSM</li><li>GHDL</li></ul>
+                            <span class="project-repo mono">View repository &rarr;</span>
+                        </div>
+                        <figure class="project-visual">
+                            <img src="assets/projects/uart-calculator.svg" alt="The task's example: request BA CD 00 10 00 20 00 49 in on rx_i, through uart_rx, msg_rx, alu, msg_tx and uart_tx, reply AB CD 00 30 58 out on tx_o" width="600" height="380" loading="lazy" decoding="async">
+                            <figcaption>Task example &middot; 16 + 32 = 48</figcaption>
+                        </figure>
+                    </a>
+                </li>
+
                 <li>
                     <a class="card" href="https://github.com/BerkmKuzu1/8bitcounter-asic" target="_blank" rel="noopener">
                         <div class="card-head">
