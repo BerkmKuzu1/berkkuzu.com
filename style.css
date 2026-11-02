@@ -903,6 +903,14 @@ a.card:hover h3 { color: var(--accent); }
 }
 
 /* --------------------------------------------------------------------------
+   Comments — the giscus frame sizes itself; this only sets the column
+   -------------------------------------------------------------------------- */
+.comment-topics { margin-bottom: 1.5rem; }
+/* .chips sets display: flex, which would beat the hidden attribute. */
+.comment-topics[hidden] { display: none; }
+.comment-thread { max-width: 48rem; }
+
+/* --------------------------------------------------------------------------
    About
    -------------------------------------------------------------------------- */
 .about-grid {

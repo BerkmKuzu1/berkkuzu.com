@@ -353,4 +353,178 @@
                 /* The static fallback already in the HTML stays as-is. */
             });
     }
+
+    /* ----------------------------------------------------------------------
+       Project comments — giscus, on this repository's GitHub Discussions
+       ---------------------------------------------------------------------- */
+    /* One giscus frame serves every project: a chip swaps the thread with a
+       setConfig message instead of reloading the frame. Nothing is fetched
+       from giscus.app until the section is about to scroll into view, or a
+       link points straight at a thread (projects.html?thread=vhdl). Without
+       a category id there is nothing to load, so the plain link stays. */
+    var threadRoot = document.getElementById("comment-thread");
+    var topicsRoot = document.getElementById("comment-topics");
+
+    if (threadRoot && topicsRoot && threadRoot.getAttribute("data-category-id")) {
+        var giscusOrigin = "https://giscus.app";
+        var chips = Array.prototype.slice.call(topicsRoot.querySelectorAll(".chip"));
+        var threads = chips.map(function (chip) {
+            return chip.getAttribute("data-thread");
+        });
+        var canonical = document.querySelector('link[rel="canonical"]');
+        var pageUrl = canonical ? canonical.href : location.href.split(/[?#]/)[0];
+
+        /* What the frame should show. The term is the discussion's title on
+           GitHub; description and backLink only go into its first post,
+           written with the first comment. */
+        var wanted = {};
+        var loaded = false;
+        var stale = false;
+
+        function giscusTheme() {
+            var theme = root.getAttribute("data-theme") || systemTheme();
+            return theme === "light" ? "light" : "transparent_dark";
+        }
+
+        function sync() {
+            var frame = threadRoot.querySelector("iframe.giscus-frame");
+            if (frame) {
+                frame.contentWindow.postMessage(
+                    { giscus: { setConfig: wanted } }, giscusOrigin);
+            }
+        }
+
+        function pick(thread) {
+            wanted.term = "projects/" + thread;
+            wanted.description = "Comments on " +
+                chips[threads.indexOf(thread)].textContent + ".";
+            wanted.backLink = pageUrl + "?thread=" + thread;
+
+            chips.forEach(function (chip) {
+                chip.setAttribute("aria-pressed",
+                    chip.getAttribute("data-thread") === thread ? "true" : "false");
+            });
+
+            try {
+                sessionStorage.setItem("comment-thread", thread);
+            } catch (e) {
+                /* Private mode: back from GitHub sign-in, the first thread opens. */
+            }
+        }
+
+        function load() {
+            if (loaded) { return; }
+            loaded = true;
+
+            var script = document.createElement("script");
+
+            Object.keys(threadRoot.dataset).forEach(function (key) {
+                script.dataset[key] = threadRoot.dataset[key];
+            });
+            script.dataset.term = wanted.term;
+            script.dataset.theme = wanted.theme;
+            script.src = giscusOrigin + "/client.js";
+            script.crossOrigin = "anonymous";
+            script.async = true;
+
+            /* client.js builds the frame from the page's own description and
+               URL, and rebuilds it with its first settings after a sign-out.
+               giscus drops a message that arrives before it has rendered, so
+               after every (re)load send the settings again once it speaks. */
+            stale = true;
+            script.addEventListener("load", function () {
+                var frame = threadRoot.querySelector("iframe.giscus-frame");
+                if (!frame) { return; }
+
+                frame.addEventListener("load", function () {
+                    stale = true;
+                    sync();
+                });
+            });
+
+            document.body.appendChild(script);
+        }
+
+        window.addEventListener("message", function (event) {
+            if (event.origin === giscusOrigin && stale) {
+                stale = false;
+                sync();
+            }
+        });
+
+        topicsRoot.addEventListener("click", function (event) {
+            var chip = event.target.closest(".chip");
+            if (!chip) { return; }
+
+            var thread = chip.getAttribute("data-thread");
+            pick(thread);
+            /* The address now opens this thread, so it can be shared. */
+            history.replaceState(null, "", "?thread=" + thread + "#comments");
+
+            if (loaded) {
+                sync();
+            } else {
+                load();
+            }
+        });
+
+        /* Follow the theme toggle, and the system setting while no choice is
+           stored. */
+        function syncTheme() {
+            wanted.theme = giscusTheme();
+            sync();
+        }
+
+        if (window.MutationObserver) {
+            new MutationObserver(syncTheme)
+                .observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+        }
+
+        var lightQuery = window.matchMedia("(prefers-color-scheme: light)");
+        if (lightQuery.addEventListener) {
+            lightQuery.addEventListener("change", syncTheme);
+        } else if (lightQuery.addListener) {
+            lightQuery.addListener(syncTheme);
+        }
+
+        /* After GitHub sign-in giscus comes back to #comment-thread with a
+           ?giscus= session; reopen the thread the visitor was reading. */
+        var query = new URLSearchParams(location.search);
+        var linked = threads.indexOf(query.get("thread")) !== -1;
+        var returning = query.has("giscus");
+        var stored = null;
+
+        try {
+            stored = sessionStorage.getItem("comment-thread");
+        } catch (e) {
+            /* Nothing stored is fine: the first thread opens. */
+        }
+
+        wanted.theme = giscusTheme();
+        pick(linked ? query.get("thread")
+            : returning && threads.indexOf(stored) !== -1 ? stored
+            : threads[0]);
+        topicsRoot.hidden = false;
+
+        if (linked || returning) {
+            load();
+
+            /* Jump like a #fragment does on load, rather than glide there. */
+            if (linked) {
+                root.style.scrollBehavior = "auto";
+                topicsRoot.closest("section").scrollIntoView();
+                root.style.scrollBehavior = "";
+            }
+        } else if ("IntersectionObserver" in window) {
+            var commentsObserver = new IntersectionObserver(function (entries) {
+                if (entries[0].isIntersecting) {
+                    commentsObserver.disconnect();
+                    load();
+                }
+            }, { rootMargin: "300px 0px" });
+            commentsObserver.observe(threadRoot);
+        } else {
+            load();
+        }
+    }
 }());
