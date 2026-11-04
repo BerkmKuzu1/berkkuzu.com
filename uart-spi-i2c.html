@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>UART, SPI and I2C — Berk Muammer Kuzu</title>
+<meta name="description" content="An interactive course on the three everyday serial buses: UART frames and oversampling, the four SPI modes and a serial flash, I2C open drain, addressing, ACK and clock stretching, with every result from the Questa runs of the UART-SPI-I2C Practice labs.">
+<link rel="canonical" href="https://berkkuzu.com/uart-spi-i2c.html">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="berkkuzu.com">
+<meta property="og:title" content="UART, SPI and I2C — a hands-on course">
+<meta property="og:description" content="Learn UART, SPI and I2C step by step: interactive lessons and the results of every lab, verified in Questa.">
+<meta property="og:url" content="https://berkkuzu.com/uart-spi-i2c.html">
+<meta property="og:image" content="https://berkkuzu.com/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<meta name="theme-color" content="#0b0d11" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
+
+<link rel="stylesheet" href="style.css?v=20261104">
+<script>try{var t=localStorage.getItem("theme");if(t){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
+
+<style>
+/* --------------------------------------------------------------------------
+   SerDes course. Uses the site's tokens from style.css and adds a few
+   colours for diagrams. Layout: chapter list on the left, one screen at a
+   time on the right; each screen shows an interactive figure first, then
+   the notes.
+   -------------------------------------------------------------------------- */
+:root {
+    --ok: #46c98a;   --ok-soft: rgba(70, 201, 138, 0.14);
+    --bad: #f2776c;  --bad-soft: rgba(242, 119, 108, 0.14);
+    --info: #66adf0; --info-soft: rgba(102, 173, 240, 0.14);
+    --vio: #ad97f9;  --vio-soft: rgba(173, 151, 249, 0.15);
+    --term-bg: #07090c;
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        --ok: #17824d;   --ok-soft: rgba(23, 130, 77, 0.1);
+        --bad: #c03a2d;  --bad-soft: rgba(192, 58, 45, 0.09);
+        --info: #1d6aad; --info-soft: rgba(29, 106, 173, 0.09);
+        --vio: #5b42c2;  --vio-soft: rgba(91, 66, 194, 0.09);
+        --term-bg: #10141b;
+    }
+}
+:root[data-theme="light"] {
+    --ok: #17824d;   --ok-soft: rgba(23, 130, 77, 0.1);
+    --bad: #c03a2d;  --bad-soft: rgba(192, 58, 45, 0.09);
+    --info: #1d6aad; --info-soft: rgba(29, 106, 173, 0.09);
+    --vio: #5b42c2;  --vio-soft: rgba(91, 66, 194, 0.09);
+    --term-bg: #10141b;
+}
+
+.wide { max-width: 1200px; }
+
+.crumbs { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-mute); margin-bottom: 0.9rem; }
+.crumbs a { color: var(--text-dim); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+
+.course-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.5rem 2.5rem;
+    align-items: end;
+    padding-bottom: 1.6rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+}
+.course-head h1 { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 0.7rem; }
+.course-head h1 span { color: var(--accent); }
+.course-head .section-intro { max-width: 70ch; }
+.head-links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.1rem; }
+.progress { min-width: 220px; font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-mute); }
+.progress-bar { height: 6px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; margin-top: 0.45rem; }
+.progress-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-hi)); transition: width 0.4s; }
+
+.course { display: grid; grid-template-columns: 252px minmax(0, 1fr); gap: 2.4rem; align-items: start; }
+
+.c-nav { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; padding-right: 0.25rem; scrollbar-width: thin; }
+.c-nav-h { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-mute); margin: 0 0 0.5rem 0.7rem; }
+.c-nav ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.c-nav button {
+    width: 100%; display: grid; grid-template-columns: 1.9rem minmax(0, 1fr) auto; gap: 0.3rem; align-items: baseline;
+    text-align: left; background: none; border: 1px solid transparent; border-radius: var(--radius-sm);
+    padding: 0.5rem 0.65rem; color: var(--text-dim); font: inherit; font-size: 0.9rem; line-height: 1.35; cursor: pointer;
+    transition: background-color var(--speed), color var(--speed);
+}
+.c-nav button:hover { background: var(--surface-2); color: var(--text); }
+.c-nav button[aria-current="step"] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text); }
+.c-nav .no { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-mute); }
+.c-nav button[aria-current="step"] .no { color: var(--accent); }
+.c-nav .cnt { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-mute); }
+.c-nav .cnt.done { color: var(--ok); }
+
+.c-panel { min-width: 0; }
+.c-kicker { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.c-title { font-size: clamp(1.6rem, 3.6vw, 2.25rem); margin: 0.25rem 0 1rem; }
+.c-steps { display: flex; gap: 5px; margin-bottom: 1.4rem; }
+.c-steps button { flex: 1; height: 7px; padding: 0; border: 0; border-radius: 99px; background: var(--surface-2); cursor: pointer; }
+.c-steps button.seen { background: var(--accent-line); }
+.c-steps button.cur { background: var(--accent); }
+.c-sno { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-mute); margin: 0; }
+.c-stitle { font-size: clamp(1.25rem, 2.6vw, 1.6rem); margin: 0.15rem 0 1rem; }
+
+.c-visual { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem; margin-bottom: 1.25rem; box-shadow: var(--shadow); min-width: 0; }
+.c-plain { display: flex; gap: 0.8rem; align-items: flex-start; margin: 0 0 1.1rem; padding: 0.85rem 1rem; border-radius: var(--radius-sm); background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--text); font-size: 0.96rem; max-width: 80ch; }
+.c-plain b { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); white-space: nowrap; padding-top: 0.2rem; }
+.c-notes { list-style: none; margin: 0 0 1.1rem; padding: 0; display: grid; gap: 0.6rem; max-width: 78ch; }
+.c-notes li { position: relative; padding-left: 1.3rem; color: var(--text-dim); }
+.c-notes li::before { content: ""; position: absolute; left: 0.15rem; top: 0.62em; width: 7px; height: 7px; border-radius: 2px; background: var(--accent); }
+.c-notes strong { color: var(--text); font-weight: 600; }
+.c-notes code, .c-repo code, .c-plain code, .tbl code, .msg code, .c-visual p code { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 0.02em 0.32em; color: var(--accent); }
+.c-repo { margin: 0 0 1.1rem; padding: 0.9rem 1rem; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; color: var(--text-dim); max-width: 80ch; font-size: 0.95rem; }
+.c-repo b { display: block; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-mute); margin-bottom: 0.25rem; }
+.c-terms { margin: 0 0 1.1rem; max-width: 80ch; }
+.c-terms summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); }
+.c-terms dl { margin: 0.6rem 0 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35rem 1rem; font-size: 0.92rem; }
+.c-terms dt { font-weight: 600; color: var(--text); }
+.c-terms dd { margin: 0; color: var(--text-dim); }
+.c-src { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 1.6rem; }
+.c-src > span:first-child { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-mute); }
+.chip-src { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 0.12rem 0.5rem; text-decoration: none; }
+a.chip-src:hover { color: var(--accent); border-color: var(--accent-line); }
+.chip-src b { color: var(--text); font-weight: 600; }
+.c-pager { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+.c-pager .cbtn { max-width: 48%; }
+.c-pager .cbtn span { display: block; font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-mute); }
+.keys { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-mute); margin-top: 0.8rem; }
+kbd { font-family: var(--font-mono); font-size: 0.72rem; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3rem; color: var(--text-dim); }
+
+/* evidence tags */
+.ev { font-family: var(--font-mono); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.04em; padding: 0.05rem 0.4rem; border-radius: 5px; white-space: nowrap; vertical-align: 0.08em; margin: 0 0.1rem; }
+.ev-sim { background: var(--ok-soft); color: var(--ok); }
+.ev-viv { background: var(--vio-soft); color: var(--vio); }
+.ev-doc { background: var(--info-soft); color: var(--info); }
+.ev-hw  { background: var(--bad-soft); color: var(--bad); }
+.ev-est { background: var(--accent-soft); color: var(--accent); }
+
+/* widgets */
+.cbtn { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; padding: 0.45rem 0.85rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; font-size: 0.88rem; font-weight: 550; cursor: pointer; text-align: left; transition: border-color var(--speed), background-color var(--speed); }
+.cbtn:hover { border-color: var(--accent-line); }
+.cbtn:disabled { opacity: 0.4; cursor: default; }
+.cbtn.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.cbtn.pri:hover { background: var(--accent-hi); }
+.cbtn.pri span { color: inherit; opacity: 0.75; }
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.8rem; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-soft); }
+.seg button { border: 0; background: none; color: var(--text-dim); font: inherit; font-size: 0.84rem; padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.seg-l { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-mute); margin-right: 0.2rem; }
+.sls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.6rem 1.4rem; margin: 0.2rem 0 0.9rem; }
+.sl { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.86rem; color: var(--text-dim); }
+.sl b { color: var(--text); font-weight: 600; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.kvs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-top: 0.9rem; }
+.kv { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem 0.75rem; min-width: 0; }
+.kv span { display: block; font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-mute); }
+.kv strong { display: block; font-size: 1.15rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv.ok strong { color: var(--ok); } .kv.bad strong { color: var(--bad); } .kv.acc strong { color: var(--accent); }
+.msg { margin-top: 0.8rem; padding: 0.6rem 0.8rem; border-radius: var(--radius-sm); background: var(--bg-soft); border: 1px solid var(--border); font-size: 0.92rem; color: var(--text-dim); }
+.msg.ok { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+.msg.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
+.msg.acc { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.hint { font-size: 0.86rem; color: var(--text-mute); margin: 0 0 0.7rem; }
+.figwrap { overflow-x: auto; }
+.figwrap svg.fig { min-width: 560px; }
+svg.fig { width: 100%; height: auto; display: block; }
+.tblwrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tbl th { text-align: left; font-weight: 600; color: var(--text); padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
+.tbl td { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+.tbl td.mono, .tbl .mono { font-family: var(--font-mono); font-size: 0.84rem; color: var(--text); }
+.tbl tr.hl td { background: var(--accent-soft); }
+.pass { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--ok); }
+.fail { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; color: var(--bad); }
+.term { background: var(--term-bg); color: #d6dde6; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem 0.9rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.55; height: 330px; overflow-y: auto; white-space: pre; overflow-x: auto; }
+.term .pc { color: #ffb347; }
+.term .ck { color: #63d297; }
+.term .dim { color: #7f8a99; }
+pre.out { background: var(--term-bg); color: #d6dde6; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem 0.9rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5; overflow-x: auto; margin: 0.8rem 0 0; }
+.bigword { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; letter-spacing: 0.04em; color: var(--accent); }
+.bits { display: inline-flex; gap: 3px; }
+.bits i { font-style: normal; font-family: var(--font-mono); font-size: 0.9rem; width: 1.6rem; text-align: center; padding: 0.2rem 0; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+.bits i.one { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.bits i.first { box-shadow: 0 0 0 2px var(--info); }
+.toggles { display: flex; flex-wrap: wrap; gap: 4px; }
+.toggles button { font-family: var(--font-mono); font-size: 0.8rem; padding: 0.35rem 0.55rem; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-dim); cursor: pointer; }
+.toggles button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.7rem; margin-bottom: 1.2rem; }
+.stat { padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-soft); }
+.stat strong { display: block; font-size: 1.45rem; color: var(--accent); letter-spacing: -0.02em; }
+.stat .stat-l { display: block; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); margin: 0.15rem 0 0.3rem; }
+.stat .stat-d { display: block; font-size: 0.84rem; color: var(--text-dim); line-height: 1.4; }
+.cmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.5rem; }
+.cmap button { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0 0.4rem; text-align: left; padding: 0.7rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; transition: border-color var(--speed), transform var(--speed); }
+.cmap button:hover { border-color: var(--accent-line); transform: translateY(-2px); }
+.cmap .n { grid-row: span 2; font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); padding-top: 0.15rem; }
+.cmap .t { font-weight: 600; font-size: 0.94rem; }
+.cmap .k { font-size: 0.8rem; color: var(--text-dim); }
+.quiz { display: grid; gap: 1rem; }
+.q { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.9rem 1rem; background: var(--bg-soft); }
+.q p { margin: 0 0 0.6rem; color: var(--text); font-weight: 550; }
+.q .opts { display: grid; gap: 0.35rem; }
+.q button { text-align: left; font: inherit; font-size: 0.92rem; padding: 0.45rem 0.7rem; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); cursor: pointer; }
+.q button:hover { border-color: var(--accent-line); color: var(--text); }
+.q button.right { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.q button.wrong { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.q .why { margin-top: 0.6rem; font-size: 0.88rem; color: var(--text-dim); }
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.check-list li { display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 0.5rem; font-size: 0.92rem; color: var(--text-dim); }
+.lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.7rem; margin-top: 1rem; }
+.lesson { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem 0.9rem; background: var(--bg-soft); font-size: 0.88rem; color: var(--text-dim); }
+.lesson b { display: block; font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent); margin-bottom: 0.2rem; }
+.h4 { font-size: 0.82rem; font-family: var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-mute); margin: 1.2rem 0 0.5rem; }
+.h4:first-child { margin-top: 0; }
+
+/* svg */
+.sv-t { font: 12px var(--font-sans); fill: var(--text-dim); }
+.sv-s { font: 10.5px var(--font-sans); fill: var(--text-mute); }
+.sv-h { font: 600 12.5px var(--font-sans); fill: var(--text); }
+.sv-m { font: 11.5px var(--font-mono); fill: var(--text-dim); }
+.sv-mb { font: 700 13px var(--font-mono); fill: var(--text); }
+.sv-acc { fill: var(--accent); }
+.sv-okt { fill: var(--ok); } .sv-badt { fill: var(--bad); } .sv-infot { fill: var(--info); }
+.sv-box { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 1; }
+.sv-box.acc { fill: var(--accent-soft); stroke: var(--accent-line); }
+.sv-box.ok { fill: var(--ok-soft); stroke: var(--ok); }
+.sv-box.bad { fill: var(--bad-soft); stroke: var(--bad); }
+.sv-box.info { fill: var(--info-soft); stroke: var(--info); }
+.sv-box.vio { fill: var(--vio-soft); stroke: var(--vio); }
+.sv-box.none { fill: none; stroke: var(--border-strong); stroke-dasharray: 4 3; }
+.sv-line { stroke: var(--text-mute); stroke-width: 1.4; fill: none; }
+.sv-line.acc { stroke: var(--accent); } .sv-line.info { stroke: var(--info); } .sv-line.ok { stroke: var(--ok); } .sv-line.bad { stroke: var(--bad); }
+.sv-head { fill: var(--text-mute); } .sv-head.acc { fill: var(--accent); } .sv-head.info { fill: var(--info); }
+.sv-wave { stroke: var(--accent); stroke-width: 2; fill: none; stroke-linejoin: round; }
+.sv-wave.dim { stroke: var(--text-mute); stroke-width: 1.5; }
+.sv-wave.info { stroke: var(--info); }
+.sv-wave.ok { stroke: var(--ok); }
+.sv-grid { stroke: var(--border); stroke-width: 1; }
+.sv-dash { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+.sv-band { fill: var(--ok-soft); } .sv-band.bad { fill: var(--bad-soft); } .sv-band.acc { fill: var(--accent-soft); }
+.sv-trace { stroke: var(--accent); stroke-width: 1.1; fill: none; opacity: 0.22; }
+.pick { cursor: pointer; }
+.pick:hover .sv-box, .pick:focus .sv-box { stroke: var(--accent); }
+.pick.on .sv-box { stroke: var(--accent); stroke-width: 2.2; }
+.pick:focus { outline: none; }
+.dimmed { opacity: 0.22; transition: opacity 0.25s; }
+
+/* inputs and widgets of this course */
+.cin { width: 3.2rem; text-align: center; font-family: var(--font-mono); font-size: 1rem; padding: 0.3rem; border-radius: 7px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); }
+.hexdump { display: grid; gap: 4px; font-family: var(--font-mono); font-size: 0.84rem; overflow-x: auto; }
+.hexrow { display: flex; gap: 3px; align-items: center; }
+.hexaddr { width: 2.6rem; color: var(--text-mute); }
+.hexb { font: inherit; padding: 0.18rem 0.3rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim); cursor: pointer; }
+.hexb:hover { border-color: var(--accent-line); }
+.hexb.bw { background: var(--info-soft); color: var(--info); }
+.hexb.sync { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.hexb.pkt { background: var(--vio-soft); color: var(--vio); }
+.i2cgrid { display: grid; grid-template-columns: 2.4rem repeat(16, minmax(1.6rem, 1fr)); gap: 3px; font-family: var(--font-mono); font-size: 0.78rem; overflow-x: auto; margin: 0.4rem 0 0.8rem; }
+.i2cgrid .gh { color: var(--text-mute); text-align: center; padding: 0.15rem 0; }
+.i2cgrid .gc { text-align: center; padding: 0.2rem 0; border-radius: 4px; background: var(--surface-2); color: var(--text-mute); }
+.i2cgrid .gc.res { background: none; }
+.i2cgrid .gc.cur { outline: 2px solid var(--accent); }
+.i2cgrid .gc.hit { background: var(--ok-soft); color: var(--ok); font-weight: 700; }
+.i2cseq { display: flex; flex-wrap: wrap; gap: 4px; }
+.i2cseq .q2 { font-family: var(--font-mono); font-size: 0.86rem; padding: 0.35rem 0.55rem; border-radius: 6px; border: 1px solid var(--border); }
+.i2cseq .q2.m { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
+.i2cseq .q2.s { background: var(--ok-soft); color: var(--ok); }
+.i2cseq .q2.ack { font-size: 0.74rem; padding: 0.35rem 0.4rem; }
+
+@media (max-width: 920px) {
+    .course { grid-template-columns: minmax(0, 1fr); gap: 1.2rem; }
+    .c-nav { position: static; max-height: none; overflow-x: auto; padding-bottom: 0.4rem; }
+    .c-nav-h { display: none; }
+    .c-nav ol { display: flex; gap: 0.35rem; }
+    .c-nav button { white-space: nowrap; border-color: var(--border); grid-template-columns: auto auto; }
+    .c-nav .cnt { display: none; }
+    .course-head { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+    .c-visual { padding: 0.8rem; }
+    .c-pager .cbtn { max-width: 100%; flex: 1 1 100%; }
+    .c-visual:has(.figwrap)::after { content: "\2190  swipe the figure sideways  \2192"; display: block; margin-top: 0.6rem; text-align: center; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-mute); }
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <a class="brand" href="index.html">
+            <img src="assets/badger.png" alt="Ostim BLogic" height="26">
+            <span class="brand-name">Berk M. Kuzu</span>
+        </a>
+
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="log.html">Log</a></li>
+                <li><a href="projects.html">Projects</a></li>
+                <li><a href="notes.html">Notes</a></li>
+                <li><a href="about.html">About</a></li>
+            </ul>
+        </nav>
+
+        <button type="button" class="icon-btn theme-toggle" aria-label="Switch theme">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+        </button>
+
+        <button type="button" class="icon-btn nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="site-nav">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+    </div>
+</header>
+
+<main id="main">
+
+    <section class="page-head">
+        <div class="container wide">
+            <p class="crumbs"><a href="projects.html">Projects</a> / UART, SPI and I2C Practice</p>
+            <div class="course-head">
+                <div>
+                    <span class="eyebrow">Course &middot; UART, SPI and I2C Practice</span>
+                    <h1>UART, SPI <span>&amp;</span> I2C</h1>
+                    <p class="section-intro">
+                        The three serial buses almost every chip on a board speaks: one wire
+                        without a clock, four wires with one, and two wires shared by many
+                        devices. Each lesson has a figure you can play with, and every
+                        result comes from the narrated testbenches of the
+                        <a href="https://github.com/BerkmKuzu1/UART-SPI-I2C-Practice" target="_blank" rel="noopener">UART, SPI and I2C Practice</a>
+                        labs, run in Questa.
+                    </p>
+                    <div class="head-links">
+                        <a class="btn btn-primary" href="https://github.com/BerkmKuzu1/UART-SPI-I2C-Practice" target="_blank" rel="noopener">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.9-.01 3.29 0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg>
+                            The labs on GitHub
+                        </a>
+                        <ul class="tags" style="align-items:center"><li>VHDL</li><li>UART</li><li>SPI</li><li>I2C</li><li>Questa</li></ul>
+                    </div>
+                </div>
+                <div class="progress" aria-live="polite">
+                    <span id="prog-label">0 of 0 screens seen</span>
+                    <div class="progress-bar"><i id="prog-bar"></i></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+        <div class="container wide">
+            <div class="course">
+                <nav class="c-nav" aria-label="Chapters">
+                    <p class="c-nav-h">Chapters</p>
+                    <ol id="c-nav"></ol>
+                </nav>
+                <article class="c-panel" id="c-panel" aria-live="polite">
+                    <noscript><p class="msg">This course draws its figures with JavaScript. The labs and their write-ups are also on <a href="https://github.com/BerkmKuzu1/UART-SPI-I2C-Practice">GitHub</a>.</p></noscript>
+                </article>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <p class="footer-note">&copy; 2026 Berk Muammer Kuzu &middot; plain HTML, CSS and JS</p>
+        <div class="social-links">
+            <a href="https://github.com/BerkmKuzu1" target="_blank" rel="noopener" aria-label="GitHub">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.9-.01 3.29 0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/berk-muammer-kuzu/" target="_blank" rel="noopener" aria-label="LinkedIn">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM9 9h3.8v1.64h.05c.53-.95 1.83-1.95 3.76-1.95 4.02 0 4.76 2.5 4.76 5.76V21h-4v-5.6c0-1.34-.02-3.06-1.9-3.06-1.9 0-2.19 1.46-2.19 2.96V21H9z"/></svg>
+            </a>
+        </div>
+    </div>
+</footer>
+
+<script src="script.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* ======================================================================
+   Small DOM and SVG helpers
+   ====================================================================== */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const REDUCED = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+const REPO = 'https://github.com/BerkmKuzu1/UART-SPI-I2C-Practice/blob/main/';
+
+function add(e, ...kids) {
+    for (const k of kids.flat(Infinity)) {
+        if (k === null || k === undefined || k === false) continue;
+        e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+    }
+    return e;
+}
+function set(e, a) {
+    if (!a) return e;
+    for (const [k, v] of Object.entries(a)) {
+        if (v === null || v === undefined || v === false) continue;
+        if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
+        else if (k === 'style') e.style.cssText = v;
+        else e.setAttribute(k, v === true ? '' : v);
+    }
+    return e;
+}
+const h = (t, a, ...k) => add(set(document.createElement(t), a), k);
+const s = (t, a, ...k) => add(set(document.createElementNS(SVGNS, t), a), k);
+const put = (e, ...k) => { e.replaceChildren(); return add(e, k); };
+
+/* **bold**, `code` and evidence tags [[sim]] [[doc]] [[est]] */
+const TAG = {
+    sim: ['ev-sim', 'Questa'], doc: ['ev-doc', 'from the docs'], est: ['ev-est', 'model']
+};
+const RX = /(\*\*[^*]+\*\*|`[^`]+`|\[\[(?:sim|doc|est)\]\])/g;
+function rich(t) {
+    return String(t).split(RX).filter(Boolean).map(p => {
+        if (p.length > 4 && p.startsWith('**') && p.endsWith('**')) return h('strong', null, rich(p.slice(2, -2)));
+        if (p.length > 2 && p.startsWith('`') && p.endsWith('`')) return h('code', null, p.slice(1, -1));
+        const m = /^\[\[(\w+)\]\]$/.exec(p);
+        if (m && TAG[m[1]]) return h('span', { class: 'ev ' + TAG[m[1]][0] }, TAG[m[1]][1]);
+        return p;
+    });
+}
+
+function seg(label, opts, cur, on) {
+    const g = h('div', { class: 'seg', role: 'group', 'aria-label': label });
+    const bs = [];
+    for (const [v, l] of opts) {
+        const b = h('button', { type: 'button', 'aria-pressed': String(v === cur) }, l);
+        b.addEventListener('click', () => { bs.forEach(x => x.setAttribute('aria-pressed', String(x === b))); on(v); });
+        bs.push(b);
+    }
+    return h('div', { style: 'display:inline-flex;align-items:center;gap:.35rem;flex-wrap:wrap' },
+        h('span', { class: 'seg-l' }, label), add(g, bs));
+}
+function slider(label, min, max, step, val, fmt, on) {
+    const out = h('b', { class: 'mono' });
+    const r = h('input', { type: 'range', min, max, step, value: val, 'aria-label': label });
+    const upd = () => { out.textContent = fmt(Number(r.value)); };
+    r.addEventListener('input', () => { upd(); on(Number(r.value)); });
+    upd();
+    return h('label', { class: 'sl' }, h('span', null, label + ': ', out), r);
+}
+const kv = (l, v, cls) => h('div', { class: 'kv' + (cls ? ' ' + cls : '') }, h('span', null, l), h('strong', null, v));
+const btn = (label, on, cls) => h('button', { type: 'button', class: 'cbtn' + (cls ? ' ' + cls : ''), onclick: on }, label);
+const msg = (t, cls) => h('div', { class: 'msg' + (cls ? ' ' + cls : '') }, rich(t));
+function table(head, rows, opts) {
+    return h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' },
+        h('thead', null, h('tr', null, head.map(x => h('th', null, x)))),
+        h('tbody', null, rows.map(r => h('tr', { class: opts && opts.hl && opts.hl(r) ? 'hl' : null },
+            r.map((c, i) => h('td', { class: opts && opts.mono && opts.mono.includes(i) ? 'mono' : null }, typeof c === 'string' ? rich(c) : c)))))));
+}
+
+function svg(w, hh, label) { return s('svg', { viewBox: `0 0 ${w} ${hh}`, class: 'fig', role: 'img', 'aria-label': label }); }
+const fw = e => h('div', { class: 'figwrap' }, e);
+function T(g, x, y, t, cls, anchor) { const e = s('text', { x, y, class: cls || 'sv-t', 'text-anchor': anchor || 'start' }, t); g.append(e); return e; }
+function R(g, x, y, w, hh, cls, rx) { const e = s('rect', { x, y, width: w, height: hh, rx: rx == null ? 7 : rx, class: cls || 'sv-box' }); g.append(e); return e; }
+function L(g, x1, y1, x2, y2, cls) { const e = s('line', { x1, y1, x2, y2, class: cls || 'sv-line' }); g.append(e); return e; }
+function P(g, d, cls) { const e = s('path', { d, class: cls || 'sv-line' }); g.append(e); return e; }
+function A(g, x1, y1, x2, y2, cls) {
+    L(g, x1, y1, x2, y2, 'sv-line ' + (cls || ''));
+    const a = Math.atan2(y2 - y1, x2 - x1), l = 7, w = 3.8;
+    const p = (dx, dy) => `${(x2 + dx).toFixed(1)},${(y2 + dy).toFixed(1)}`;
+    g.append(s('polygon', { class: 'sv-head ' + (cls || ''), points: `${x2},${y2} ${p(-l * Math.cos(a) + w * Math.sin(a), -l * Math.sin(a) - w * Math.cos(a))} ${p(-l * Math.cos(a) - w * Math.sin(a), -l * Math.sin(a) + w * Math.cos(a))}` }));
+}
+/* a digital waveform: bits[i] drawn in slot i, 'null' bits leave a gap */
+function wave(g, x0, y, bits, w, amp, cls) {
+    let d = '', prev = null;
+    bits.forEach((b, i) => {
+        const x = x0 + i * w;
+        if (b === null || b === undefined) { prev = null; return; }
+        const yy = b ? y - amp : y + amp;
+        if (prev === null) d += `M${x} ${yy}`;
+        else if (prev !== b) d += ` L${x} ${prev ? y - amp : y + amp} L${x} ${yy}`;
+        d += ` L${x + w} ${yy}`;
+        prev = b;
+    });
+    if (d) P(g, d, 'sv-wave ' + (cls || ''));
+}
+function clockWave(g, x0, y, periods, per, amp, cls) {
+    const bits = [];
+    for (let i = 0; i < periods; i++) bits.push(1, 0);
+    wave(g, x0, y, bits, per / 2, amp, cls);
+}
+function pickBox(g, x, y, w, hh, title, sub, cls, on) {
+    const gg = s('g', { class: 'pick', tabindex: 0, role: 'button', 'aria-label': title });
+    R(gg, x, y, w, hh, 'sv-box ' + (cls || ''));
+    T(gg, x + w / 2, y + hh / 2 + (sub ? -3 : 4), title, 'sv-h', 'middle');
+    if (sub) T(gg, x + w / 2, y + hh / 2 + 12, sub, 'sv-s', 'middle');
+    gg.addEventListener('click', on);
+    gg.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); on(); } });
+    g.append(gg);
+    return gg;
+}
+
+/* cleanup of timers when the screen changes */
+let CLEAN = [];
+const onClean = f => CLEAN.push(f);
+function runClean() { const c = CLEAN; CLEAN = []; c.forEach(f => { try { f(); } catch (e) { /* ignore */ } }); }
+function every(ms, f) { const id = setInterval(f, ms); onClean(() => clearInterval(id)); return id; }
+
+/* bits and numbers */
+const bitsOf = v => Array.from({ length: 8 }, (_, i) => (v >> i) & 1);      // bit 0 first in time
+const fromBits = b => b.reduce((v, x, i) => v | (x << i), 0);
+const hex2 = v => v.toString(16).toUpperCase().padStart(2, '0');
+const rotr = (v, k) => ((v >> k) | (v << (8 - k))) & 0xFF;
+const fmt = (n, d) => Number(n).toLocaleString('en-US', { maximumFractionDigits: d == null ? 0 : d, minimumFractionDigits: 0 });
+function sci(x) { if (x === 0) return '0'; const e = Math.floor(Math.log10(x)); const m = x / Math.pow(10, e); return `${m.toFixed(1)}e${e}`; }
+function rng(seed) { let x = seed >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+function bitRow(bits, firstIdx, label) {
+    return h('div', { style: 'display:flex;align-items:center;gap:.6rem;flex-wrap:wrap' },
+        label ? h('span', { class: 'seg-l', style: 'min-width:5.5rem' }, label) : null,
+        h('span', { class: 'bits' }, bits.map((b, i) => h('i', { class: (b ? 'one' : '') + (i === firstIdx ? ' first' : '') }, String(b)))));
+}
+
+/* the narration of the three labs, as Questa printed it */
+const LOG_1 = ["========================================================================", " LAB 1  UART: one wire, no clock", "========================================================================", " A UART sends bytes over a single wire without a clock line. Both ends", " agree on the baud rate (bits per second) in advance; every byte starts", " with a start bit that tells the receiver 'a frame begins now'.", "", " Here the logic runs on a 100 MHz clock and the UART at 115200 baud, the", " usual speed of a USB-UART bridge like the CP2102 on the AX7101.", "", "------------------------------------------------------------------------", " Step 1: a frame on the wire", "------------------------------------------------------------------------", " Sending 'U' = x\"55\" = 0101 0101 (bit 7 ... bit 0) as 8N1: 8 data bits,", " no parity, 1 stop bit. The line idles high.", "", "   bit           start  0  1  2  3  4  5  6  7  stop", "   on the line     0    1  0  1  0  1  0  1  0   1", "   waveform      --__--__--__--__--__----   ('-' high, '_' low)", "", " The data goes out LSB first: x\"55\" shows up as 1 0 1 0 1 0 1 0.", " One bit lasted 8690 ns; 1 s / 115200 = 8681 ns. (The line can only change on a", " clock edge of the logic, every 10 ns.) The whole frame is 10 bits, 86 us.", "   [check] OK: the frame is start, 1 0 1 0 1 0 1 0, stop", "   [check] OK: one bit lasts 1/115200 s (within 2 clocks)", "", " How the bit time is made: 100 MHz / 115200 = 868.06 clocks, not a whole", " number. tick_gen adds 115200 to a counter on every clock and ticks each", " time it passes 100 000 000, so the average rate is exact.", "", "------------------------------------------------------------------------", " Step 2: the receiver", "------------------------------------------------------------------------", " The receiver samples the line 16 times per bit. The first low sample", " starts a frame; each bit is then read from samples 7, 8 and 9 of 16,", " the middle of the bit, by majority vote. Sending \"Hello, UART!\":", "", "   received        \"Hello, UART!\"", "   [check] OK: the text arrives intact", "", "------------------------------------------------------------------------", " Step 3: parity", "------------------------------------------------------------------------", " Pair B runs 8E1: after the data comes a parity bit that makes the number", " of ones even. 'A' = x\"41\" = 0100 0001 has 2 ones, so its parity bit is '0'.", "   received        x\"41\"  parity error '0'", "   [check] OK: 'A' arrives, parity OK", "", " Now the line flips bit 3 while it passes:", "   received        x\"49\" = 'I'  parity error '1'", "   [check] OK: one flipped bit is caught by the parity bit", "", " And with two flipped bits (3 and 5):", "   received        x\"69\" = 'i'  parity error '0'", "   [check] OK: two flipped bits pass the parity check unnoticed", " Parity catches an odd number of flipped bits only. Protocols on top of a", " UART add a checksum or a CRC per packet for that reason.", "", "------------------------------------------------------------------------", " Step 4: framing error and break", "------------------------------------------------------------------------", " The stop bit must be high. The \"PC\" (the testbench) now drives the line", " and sends 'S' with a low stop bit:", "   received        x\"53\"  frame error '1'", "   [check] OK: a low stop bit is a framing error", " Then it holds the line low for two frames, a 'break':", "   received        x\"00\"  frame error '1'  break '1'", "   [check] OK: a line held low reads as a break, not as data", " A receiver also sees framing errors when the two ends use different baud", " rates: the stop bit lands somewhere it should not.", "", "------------------------------------------------------------------------", " Step 5: how far apart can the two baud rates be?", "------------------------------------------------------------------------", " Two crystals are never exactly equal. The PC now sends 64 bytes back to", " back with its bit time off by some percent; the receiver still expects", " 115200 baud.", "", "   baud offset  wrong bytes of 64", "       -6 %        63", "       -5 %        63", "       -4 %        61", "       -3 %         0", "       -2 %         0", "        0 %         0", "        2 %         0", "        3 %         0", "        4 %         0", "        5 %         0", "        6 %        16", "", " The receiver lines up on each start bit, then counts on its own clock.", " By the middle of the stop bit, 9.5 bits later, a 5 % difference has moved", " the sampling point by almost half a bit. A fast sender is worse than a", " slow one: back to back, its next start bit arrives before the receiver", " is done with the stop bit, the receiver notices it late, and the lag", " adds up from frame to frame.", " Rule of thumb: keep the total difference below about 2 %.", "   [check] OK: within +-3 % every byte arrives", "   [check] OK: at +-6 % bytes are lost", "", "------------------------------------------------------------------------", " Step 6: why 16 samples and a majority vote", "------------------------------------------------------------------------", " A 1/16-bit low glitch on the idle line looks like a start bit at first:", "   frames received  0", "   [check] OK: the receiver checks the middle of the start bit and ignores the glitch", " And a glitch in the middle of bit 2 of x\"0F\", where the samples are:", "   received        x\"0F\"", "   [check] OK: the majority of three samples outvotes the glitch", "", "------------------------------------------------------------------------", " Summary", "------------------------------------------------------------------------", " * A frame: start bit (0), 8 data bits LSB first, optional parity, stop (1).", " * No clock wire: both ends must agree on the baud rate, to within ~2 %.", " * The receiver aligns on each start bit and samples the middle of every", "   bit; 16x oversampling and a majority vote shrug off short glitches.", " * Parity finds one flipped bit, not two. Framing errors point to a wrong", "   baud rate, noise, or a break.", " Next: Lab 2 adds a clock wire and gets much faster: SPI.", "", " LAB 1 PASSED (all checks OK)"];
+const LOG_2 = ["========================================================================", " LAB 2  SPI: a clock wire, and full duplex", "========================================================================", " SPI adds what a UART lacks: a clock. The master drives SCLK, MOSI (master", " out, slave in) and one chip select per slave; the slave answers on MISO.", " Every SCLK pulse moves one bit each way at the same time. There is no", " start bit, no baud rate and no addressing: chip select picks the slave,", " and the master decides how fast the clock runs.", "", " The logic runs at 100 MHz. The slave is a model of the N25Q128 flash that", " sits on the AX7101; pins and wires are assumed to add 3 ns each way.", "", "------------------------------------------------------------------------", " Step 1: the four SPI modes", "------------------------------------------------------------------------", " CPOL sets the level SCLK idles at; CPHA says whether data is sampled on", " the first (CPHA 0) or the second (CPHA 1) edge of each clock pulse. With", " a wire from MOSI back to MISO, the master must read what it sends in", " every mode. x\"A5\" = 1010 0101, MSB first, at 12.5 MHz:", "", "   mode 0  CPOL 0  CPHA 0   SCLK __--__--__--__--__--__--__--__--________   received A5", "                         MOSI ----____----________----____------------", "   mode 1  CPOL 0  CPHA 1   SCLK __--__--__--__--__--__--__--__--________   received A5", "                         MOSI ------____----________----____----------", "   mode 2  CPOL 1  CPHA 0   SCLK --__--__--__--__--__--__--__--__--------   received A5", "                         MOSI ----____----________----____------------", "   mode 3  CPOL 1  CPHA 1   SCLK --__--__--__--__--__--__--__--__--------   received A5", "                         MOSI ------____----________----____----------", "", " In modes 0 and 3 the receiver samples on rising edges and data changes on", " falling edges; in modes 1 and 2 it is the other way round. A slave's data", " sheet says which modes it supports: the N25Q128 takes 0 and 3.", "   [check] OK: a loopback wire returns x\"A5\" in all four modes", "", "------------------------------------------------------------------------", " Step 2: who are you? (READ ID, 9Fh)", "------------------------------------------------------------------------", " CS# low, the command byte 9Fh, then three more bytes. While the master", " sends zeros, the flash sends its JEDEC ID back on MISO. Mode 0, 10 MHz:", "", "   ID              20 BA 18     manufacturer 20h = Micron, type BAh = 3 V,", "                                   capacity 18h = 2^24 bytes = 128 Mbit", "   [check] OK: the flash answers 20 BA 18", " The same in mode 3 (SCLK idles high):", "   ID              20 BA 18", "   [check] OK: mode 3 reads the same ID", "", "------------------------------------------------------------------------", " Step 3: reading memory (READ, 03h)", "------------------------------------------------------------------------", " READ is 03h and a 24-bit address; the flash then streams bytes until CS#", " goes high. The first 64 bytes from address 000000h:", "", "   00:  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF", "   10:  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF", "   20:  00 00 00 BB 11 22 00 44 FF FF FF FF FF FF FF FF", "   30:  AA 99 55 66 20 00 00 00 30 02 20 01 00 00 00 00", "", " This flash holds a bitstream: FFh padding, the bus-width pattern 000000BB", " 11220044, padding, and at offset 48 the sync word AA995566. After power-up", " the FPGA reads exactly these bytes and waits for that word.", "   [check] OK: READ returns the bitstream, sync word AA995566 included", "", "------------------------------------------------------------------------", " Step 4: chip select frames a command", "------------------------------------------------------------------------", " Raise CS# after 9Fh and lower it again before reading the answer:", "   ID              FF FF FF", " CS# high ends the command. The next byte is taken as a new command (00h,", " which means nothing), MISO floats and the pull-up makes it read FFh.", "   [check] OK: a command does not survive CS# going high", "", "------------------------------------------------------------------------", " Step 5: HOLD#, the pin that freezes the flash", "------------------------------------------------------------------------", " In single-SPI mode DQ2 is W# (write protect) and DQ3 is HOLD#. With HOLD#", " low the flash ignores SCLK:", "   ID              FF FF FF", "   [check] OK: with HOLD# low the flash does not answer", " A design that leaves DQ3 floating may work on one board and not on the", " next: in single-SPI mode, drive DQ2 and DQ3 high.", "", "------------------------------------------------------------------------", " Step 6: how fast can SCLK go?", "------------------------------------------------------------------------", " In mode 0 the flash changes MISO after a falling edge and the master reads", " it at the next rising edge, half a clock period later. In between the bit", " makes a round trip: 3 ns to the flash, 7 ns inside it, 3 ns back.", "", "   SCLK      half period    ID", "    5 MHz    100 ns        20 BA 18", "   10 MHz    50 ns         20 BA 18", "   25 MHz    20 ns         20 BA 18", "   50 MHz    10 ns         10 DD 0C", "", " At 50 MHz the half period (10 ns) is shorter than the round trip (13 ns):", " the master reads each bit before it arrives and gets the previous one", " again. Inside a byte, bit 7 is read twice and bit 0 never: 20h becomes", " 10h. (Bit 7 itself arrives in time because the master pauses between", " bytes.) The N25Q128 allows 54 MHz for READ and 108 MHz for the other", " commands; to get there a master must sample later than the edge, by the", " round-trip time.", "   [check] OK: 5, 10 and 25 MHz work; 50 MHz loses the round trip", "", "------------------------------------------------------------------------", " Summary", "------------------------------------------------------------------------", " * SPI: SCLK, MOSI, MISO and a chip select per slave. One bit each way per", "   clock pulse, MSB first; the master sets the speed.", " * CPOL and CPHA give four modes. Master and slave must use the same one.", " * A command lives inside one CS# low period: opcode, address, data.", " * The round trip (wires + the slave's clock-to-output time) limits SCLK.", " Next: Lab 3 uses only two wires for many devices: I2C.", "", " LAB 2 PASSED (all checks OK)"];
+const LOG_3 = ["========================================================================", " LAB 3  I2C: two wires, many devices", "========================================================================", " I2C needs only two wires for a whole bus: SCL (clock) and SDA (data).", " Every device has a 7-bit address, so one master can talk to many slaves", " without a chip select per device. The price: it is slow (100 kHz or", " 400 kHz here), and the wires are shared, so nobody may drive them high.", "", " The master runs at 100 kHz from a 100 MHz clock. On the bus: an EEPROM", " at 50h, and a slow device at 48h that stretches the clock.", "", "------------------------------------------------------------------------", " Step 1: open drain, pull-ups and the wired AND", "------------------------------------------------------------------------", " A device can only pull a line low or let go of it; a pull-up resistor", " makes a released line high. Nobody pulls, then the testbench pulls SDA:", "", "   nobody pulls           SCL '1'  SDA '1'", "   one device pulls SDA   SCL '1'  SDA '0'", "", " A low always wins, so two devices can never short each other out: the", " line is the AND of everybody. That is how a slave answers on the same", " wire the master uses, and how it can hold the clock (Step 6).", "   [check] OK: a released bus reads high, and one device can pull it low", "", "------------------------------------------------------------------------", " Step 2: START, an address, ACK, STOP", "------------------------------------------------------------------------", " SDA may only change while SCL is low. Two exceptions mark a transfer:", " SDA falling while SCL is high is START, rising while SCL is high is STOP.", " After START the master sends the slave's address (50h) and a R/W bit,", " A0h = 1010000 0. In the ninth clock pulse the slave pulls SDA low: ACK.", "", "   SCL  ---------_____--___--___--___--___--___--___--___--___--____---------", "   SDA  ------______-----_____-----_____________________________-______------", "              S       1    0    1    0    0    0    0    0    A        P", "", " S is the START, P the STOP. The digits are the address bits, each read", " while SCL is high; A is the slave's ACK in the ninth pulse.", " One character is a fifth of a 10 us clock period: SCL is low for three", " of them and high for two. The answer was ACK.", "   [check] OK: the EEPROM at 50h acknowledges its address", "", "------------------------------------------------------------------------", " Step 3: who is on the bus?", "------------------------------------------------------------------------", " The master tries every address from 08h to 77h (START, address + W,", " STOP) and notes who answers with ACK:", "", "   devices found    48 50", "", " 112 addresses took 15 ms at 100 kHz. Tools such as i2cdetect", " scan real buses the same way.", "   [check] OK: the scan finds the devices at 48h and 50h", "", "------------------------------------------------------------------------", " Step 4: writing to the EEPROM", "------------------------------------------------------------------------", " A write is START, address + W, the word address inside the EEPROM (10h),", " then the data bytes, each acknowledged, then STOP. Writing \"I2C!\":", "", "   bytes sent       A0  10  'I' '2' 'C' '!'", "   answers          A   A   A   A   A   A     (A = ACK, N = NACK)", "   [check] OK: the EEPROM acknowledges every byte", "", "------------------------------------------------------------------------", " Step 5: reading back, with a repeated START", "------------------------------------------------------------------------", " To read from word address 10h the master first writes the address, then", " turns the bus around without letting go of it: a repeated START, then", " address + R (A1h). It ACKs every byte it wants more of and NACKs the last:", "", "   read from 10h    \"I2C!\"", "   [check] OK: the bytes come back from the EEPROM", " And from 00h, the EEPROM's own greeting, 16 bytes in one read:", "   read from 00h    \"Hello from the E\"", "   [check] OK: a sequential read walks through the memory", " Without the repeated START, a STOP would free the bus between the two", " halves, and another master could take it.", "", "------------------------------------------------------------------------", " Step 6: nobody home, and a slow device", "------------------------------------------------------------------------", " An address nobody owns (51h) gets no ACK: SDA stays high in the ninth", " pulse.", "   address 51h      NACK", "   [check] OK: a missing device reads as NACK", "", " The device at 48h needs time after each byte, so it holds SCL low for", " 30 us; the master waits until SCL really goes high before it", " goes on (clock stretching). Reading its two bytes:", "", "   read from 48h    19 80      = 25.5 C, if it were an LM75 sensor", "   longest SCL low  30 us (6 us without stretching)", "   the whole read   617 us", "   [check] OK: the slow device's bytes arrive intact", "   [check] OK: the slave stretched the clock and the master waited", "", "------------------------------------------------------------------------", " Summary", "------------------------------------------------------------------------", " * Two open-drain wires with pull-ups; a low always wins (wired AND).", " * START and STOP are the only times SDA changes while SCL is high.", " * Every byte gets a ninth clock pulse for the ACK; a missing device NACKs.", " * Devices are found by address; registers inside them by a word address.", " * A repeated START turns the bus around without releasing it.", " * A slave may hold SCL low; the master must wait for SCL to go high.", "", " LAB 3 PASSED (all checks OK)"];
+
+/* ======================================================================
+   Figures: one function per screen
+   ====================================================================== */
+
+const CHECKS = n => [LOG_1, LOG_2, LOG_3][n - 1].filter(l => l.includes('[check]')).map(l => l.replace(/^\s*\[check\] OK: /, ''));
+const isMono = 'font-family:var(--font-mono)';
+
+/* ---------- quizzes ---------- */
+function quiz(qs) {
+    return function (root) {
+        add(root, h('div', { class: 'quiz' }, qs.map(([q, opts, right, why]) => {
+            const whyEl = h('div', { class: 'why' });
+            const bs = opts.map((o, i) => h('button', { type: 'button' }, o));
+            bs.forEach((b, i) => b.addEventListener('click', () => {
+                bs.forEach((x, j) => { x.classList.remove('right', 'wrong'); if (j === right) x.classList.add('right'); });
+                if (i !== right) b.classList.add('wrong');
+                put(whyEl, rich((i === right ? 'Right. ' : 'Not quite. ') + why));
+            }));
+            return h('div', { class: 'q' }, h('p', null, rich(q)), h('div', { class: 'opts' }, bs), whyEl);
+        })));
+    };
+}
+
+/* ---------- Start here ---------- */
+function vIntro(root) {
+    const stat = (v, l, d) => h('div', { class: 'stat' }, h('strong', null, v), h('span', { class: 'stat-l mono' }, l), h('span', { class: 'stat-d' }, d));
+    const total = CHECKS(1).length + CHECKS(2).length + CHECKS(3).length;
+    add(root,
+        h('div', { class: 'stats' },
+            stat('3 labs', 'UART · SPI · I2C', 'a transmitter and a receiver, a master and a flash, a master and two slaves'),
+            stat(total + ' checks', 'all pass in Questa', 'each testbench checks its own results and ends with PASSED'),
+            stat('1, 4, 2', 'wires per bus', 'one wire and no clock, four wires with a clock, two shared wires'),
+            stat('0', 'VHDL-LS warnings', 'every VHDL file is clean in the language server of VS Code')),
+        h('p', { class: 'hint' }, 'Pick a chapter, or press → to start at the beginning. Your place is remembered on this device.'),
+        h('div', { class: 'cmap' }, CH.slice(1).map((c, i) => h('button', { type: 'button', onclick: () => go(i + 1, 0) },
+            h('span', { class: 'n' }, String(i + 1).padStart(2, '0')), h('span', { class: 't' }, c.t), h('span', { class: 'k' }, c.k)))));
+}
+
+/* ---------- shared: a terminal that replays a Questa run ---------- */
+function vRun(n) {
+    return function (root) {
+        const lines = [LOG_1, LOG_2, LOG_3][n - 1];
+        let i = 0, timer = null, speed = 1;
+        const term = h('div', { class: 'term', role: 'log', 'aria-label': 'Questa output of Lab ' + n });
+        const play = btn('▶ Play', () => { if (timer) stop(); else start(); }, 'pri');
+        function line(t) {
+            if (/\[check\] OK/.test(t)) return h('div', { class: 'ck' }, t);
+            if (/PASSED/.test(t)) return h('div', { class: 'ck', style: 'font-weight:700' }, t);
+            if (/^ Step \d|^ Summary| LAB \d  /.test(t)) return h('div', { class: 'pc' }, t);
+            if (/^[-=]{10}/.test(t)) return h('div', { class: 'dim' }, t);
+            return h('div', null, t || ' ');
+        }
+        function start() { if (i >= lines.length) { i = 0; term.replaceChildren(); } play.textContent = '❚❚ Pause'; timer = every(REDUCED ? 30 : 140 / speed, tick); }
+        function stop() { if (timer) { clearInterval(timer); timer = null; } play.textContent = '▶ Play'; }
+        function tick() { if (i >= lines.length) { stop(); return; } term.append(line(lines[i])); i++; term.scrollTop = term.scrollHeight; }
+        add(root, h('div', { class: 'row' }, play,
+            btn('Show all', () => { stop(); term.replaceChildren(...lines.map(line)); i = lines.length; term.scrollTop = 0; }),
+            btn('Restart', () => { stop(); i = 0; term.replaceChildren(); }),
+            seg('speed', [[1, '1×'], [4, '4×']], speed, v => { speed = v; if (timer) { stop(); start(); } })),
+            term, msg('The complete narration of the Lab ' + n + ' testbench as Questa printed it, unedited [[sim]].'));
+    };
+}
+
+/* ---------- shared: the list of checks of a lab ---------- */
+function vChecks(n, extra) {
+    return function (root) {
+        const ok = t => h('li', null, h('span', { class: 'pass' }, 'PASS'), h('span', null, t));
+        add(root, h('p', { class: 'h4' }, 'The ' + CHECKS(n).length + ' checks of the Lab ' + n + ' testbench, in order'),
+            h('ul', { class: 'check-list' }, CHECKS(n).map(ok)));
+        if (extra) extra(root);
+        add(root, msg('Every line above is a `[check]` the testbench ran on its own results; the run ends with `LAB ' + n + ' PASSED` in Questa [[sim]].', 'ok'));
+    };
+}
+
+/* ======================================================================  UART */
+
+function frameBits(byte, parity, stops) {
+    const bits = [{ f: 'start', l: 'S', v: 0 }];
+    for (let i = 0; i < 8; i++) bits.push({ f: 'data', l: 'd' + i, v: (byte >> i) & 1 });
+    if (parity !== 'none') {
+        let x = 0;
+        for (let i = 0; i < 8; i++) x ^= (byte >> i) & 1;
+        bits.push({ f: 'par', l: 'P', v: parity === 'even' ? x : x ^ 1 });
+    }
+    for (let i = 0; i < stops; i++) bits.push({ f: 'stop', l: 'stop', v: 1 });
+    return bits;
+}
+const FIELD_CLS = { start: 'sv-band bad', data: 'sv-band acc', par: 'sv-band vio', stop: 'sv-band' };
+
+/* ---------- 1.1 the frame ---------- */
+function vUartFrame(root) {
+    let byte = 0x55, parity = 'none', stops = 1;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' }), note = h('div');
+    const input = h('input', { type: 'text', maxlength: '1', value: 'U', class: 'cin', 'aria-label': 'character to send' });
+    input.addEventListener('input', () => { if (input.value.length) { byte = input.value.charCodeAt(0) & 0xFF; draw(); } });
+    function draw() {
+        const bits = frameBits(byte, parity, stops);
+        const n = bits.length + 2, W = 640, x0 = 20, w = (W - 40) / n, y = 100;
+        const g = svg(W, 170, 'A UART frame');
+        T(g, x0, 18, 'idle', 'sv-s');
+        bits.forEach((b, i) => {
+            const x = x0 + (i + 1) * w;
+            R(g, x + 1, 30, w - 2, 98, FIELD_CLS[b.f], 4);
+            T(g, x + w / 2, 46, b.l, 'sv-m', 'middle');
+            T(g, x + w / 2, 148, String(b.v), 'sv-mb', 'middle');
+        });
+        T(g, x0 + (n - 1) * w + 2, 18, 'idle', 'sv-s');
+        wave(g, x0, y, [1].concat(bits.map(b => b.v), [1]), w, 16);
+        T(g, W / 2, 166, 'time →   (one box = one bit)', 'sv-s', 'middle');
+        fig.replaceChildren(g);
+        const nb = bits.length;
+        put(out, kv('byte', 'x"' + hex2(byte) + '" = ' + (byte >>> 0).toString(2).padStart(8, '0')),
+            kv('bits per frame', String(nb)), kv('useful', fmt(800 / nb, 0) + ' %'),
+            kv('bytes/s at 115200', fmt(115200 / nb, 0), 'acc'));
+        put(note, msg(`The data goes out **LSB first**: bit d0 is the rightmost bit of x"${hex2(byte)}". ` +
+            (parity === 'none' ? 'No parity: 8N' + stops + '.' : `The ${parity} parity bit makes the number of ones ${parity === 'even' ? 'even' : 'odd'}.`)));
+    }
+    add(root, h('div', { class: 'row' }, h('span', { class: 'seg-l' }, 'character'), input,
+        seg('parity', [['none', 'none'], ['even', 'even'], ['odd', 'odd']], parity, v => { parity = v; draw(); }),
+        seg('stop bits', [[1, '1'], [2, '2']], stops, v => { stops = v; draw(); })), fig, out, note);
+    draw();
+}
+
+/* ---------- 1.2 baud rates from a clock ---------- */
+function vBaud(root) {
+    let clk = 100e6, baud = 115200;
+    const out = h('div', { class: 'kvs' }), tbl = h('div');
+    const BAUDS = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+    const errOf = (div) => { const n = Math.max(1, Math.round(div)); return (div / n - 1) * 100; };
+    function draw() {
+        const t = 1e6 / baud;
+        put(out, kv('one bit', fmt(t, 3) + ' µs'), kv('one 8N1 frame', fmt(10 * t, 1) + ' µs'),
+            kv('bytes per second', fmt(baud / 10)),
+            kv('16x divider', fmt(clk / (16 * baud), 2), 'acc'));
+        put(tbl, table(['Baud', 'whole divider for 16x', 'rate error', 'accumulator (tick_gen)'], BAUDS.map(b => {
+            const d = clk / (16 * b), e = errOf(d);
+            return [String(b), fmt(d, 2) + ' → ' + Math.max(1, Math.round(d)),
+                h('span', { class: Math.abs(e) > 2 ? 'fail' : 'pass' }, (e >= 0 ? '+' : '') + fmt(e, 2) + ' %'), 'exact on average'];
+        }), { mono: [0, 1], hl: r => r[0] === String(baud) }));
+    }
+    add(root, h('div', { class: 'row' },
+        seg('logic clock', [[50e6, '50 MHz'], [100e6, '100 MHz'], [125e6, '125 MHz'], [200e6, '200 MHz']], clk, v => { clk = v; draw(); }),
+        seg('baud', [[9600, '9600'], [115200, '115200'], [921600, '921600']], baud, v => { baud = v; draw(); })), out,
+        h('div', { style: 'margin-top:.9rem' }, tbl),
+        msg('A receiver samples 16 times per bit, so it needs a tick at 16 × the baud rate. A whole-number divider rounds; at fast baud rates the error passes the 2 % budget. Lab 1\'s `tick_gen` adds the rate to an accumulator on every clock and ticks when it overflows: exact on average, one clock of jitter.'));
+    draw();
+}
+
+/* ---------- 1.3 16x oversampling and the majority vote ---------- */
+function vOversample(root) {
+    let glitch = 'd2', vote = 'maj';
+    const fig = h('div', { class: 'figwrap' }), note = h('div');
+    const BYTE = 0x41, D = 0.02;                     // the receiver sees the start edge 0.02 bit late
+    function draw() {
+        const bits = frameBits(BYTE, 'none', 1);
+        const W = 640, x0 = 20, w = (W - 40) / 11, y = 70, g = svg(W, 190, 'Sampling a frame 16 times per bit');
+        bits.forEach((b, i) => { R(g, x0 + (i + 1) * w + 1, 22, w - 2, 72, FIELD_CLS[b.f], 4); T(g, x0 + (i + 1) * w + w / 2, 36, b.l, 'sv-s', 'middle'); });
+        // the line, with a glitch
+        const level = t => {                             // t in bits from the start edge
+            if (glitch === 'idle' && t > -2.6 && t < -2.6 + 1 / 16) return 0;
+            if (t < 0 || t >= 10) return 1;
+            const k = Math.floor(t), v = bits[k].v;
+            if (glitch === 'd2' && Math.abs(t - 3.5 - D) < 0.025) return v ^ 1;
+            return v;
+        };
+        let d = '';
+        for (let i = 0; i <= 1100; i++) {
+            const t = -1 + i / 100, yy = level(t) ? y - 18 : y + 18, x = x0 + (t + 1) * w;
+            d += (i ? ' L' : 'M') + x.toFixed(1) + ' ' + yy;
+        }
+        P(g, d, 'sv-wave');
+        // the sample ticks and the decision of every bit
+        const got = [];
+        for (let k = 0; k < 10; k++) {
+            for (let s16 = 0; s16 < 16; s16++) {
+                const t = k + s16 / 16 + D, x = x0 + (t + 1) * w, mid = s16 >= 7 && s16 <= 9;
+                L(g, x, 108, x, mid ? 122 : 114, mid ? 'sv-line ok' : 'sv-dash');
+            }
+            const samp = [7, 8, 9].map(s16 => level(k + s16 / 16 + D));
+            const v = vote === 'maj' ? (samp[0] + samp[1] + samp[2] >= 2 ? 1 : 0) : samp[1];
+            got.push(v);
+            T(g, x0 + (k + 1) * w + w / 2, 142, String(v), v === bits[k].v ? 'sv-mb sv-okt' : 'sv-mb sv-badt', 'middle');
+        }
+        T(g, x0, 142, 'read', 'sv-s');
+        T(g, W / 2, 178, 'ticks: 16 samples per bit · green: samples 7, 8 and 9 in the middle of each bit', 'sv-s', 'middle');
+        fig.replaceChildren(g);
+        const byte = got.slice(1, 9).reduce((a, b, i) => a | (b << i), 0);
+        const okAll = got.every((v, k) => v === bits[k].v);
+        put(note, glitch === 'idle'
+            ? msg('A glitch on the idle line starts a frame, but in the middle of that "start bit" the samples read 1: the receiver drops it as noise and waits for the next falling edge. Lab 1 checks exactly this [[sim]].', 'ok')
+            : msg(`Received x"${hex2(byte)}" ` + (okAll ? '— correct.' : '— wrong!') +
+                (glitch === 'd2' ? (vote === 'maj'
+                    ? ' The glitch in the middle of d2 hits one of the three samples; the other two outvote it.'
+                    : ' With only sample 8, the glitch decides the bit.') : ''), okAll ? 'ok' : 'bad'));
+    }
+    add(root, h('div', { class: 'row' },
+        seg('glitch', [['none', 'none'], ['d2', 'in d2'], ['idle', 'on the idle line']], glitch, v => { glitch = v; draw(); }),
+        seg('decide by', [['maj', 'majority of 7, 8, 9'], ['one', 'sample 8 only']], vote, v => { vote = v; draw(); })), fig, note);
+    draw();
+}
+
+/* ---------- 1.4 baud mismatch, simulated in the browser ---------- */
+const LAB1_MEASURED = { '-6': 63, '-5': 63, '-4': 61, '-3': 0, '-2': 0, '0': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 16 };
+function rxSimulate(pct) {
+    // The same steps as Lab 1: 64 bytes back to back from the same PRBS, the
+    // sender's bit time (1 + pct/100) receiver bits; the receiver of uart_rx.vhd.
+    const tb = 1 + pct / 100, sent = [];
+    let p = 0xA7;
+    for (let i = 0; i < 64; i++) { p = ((p << 1) | (((p >> 7) ^ (p >> 5) ^ (p >> 4) ^ (p >> 3)) & 1)) & 0xFF; sent.push(p); }
+    const level = t => {
+        if (t < 0) return 1;
+        const f = Math.floor(t / (10 * tb));
+        if (f >= 64) return 1;
+        const k = Math.floor((t - f * 10 * tb) / tb);
+        return k === 0 ? 0 : k <= 8 ? (sent[f] >> (k - 1)) & 1 : 1;
+    };
+    const got = [];
+    let st = 'idle', ph = 0, n = 0, sh = 0, w1 = 1, w0 = 1;
+    for (let tick = 0; tick < 64 * 10 * tb * 16 + 64; tick++) {
+        const s = level((tick + 0.37) / 16), v = (w1 + w0 + s) >= 2 ? 1 : 0;
+        w1 = w0; w0 = s;
+        if (st === 'idle') { if (s === 0) { st = 'start'; ph = 1; } continue; }
+        if (st === 'wait') { if (s === 1) st = 'idle'; continue; }
+        const cur = ph;
+        ph = (ph + 1) % 16;
+        if (cur === 9) {
+            if (st === 'start' && v === 1) { st = 'idle'; continue; }
+            if (st === 'data') sh = (sh >> 1) | (v << 7);
+            if (st === 'stop') { got.push({ b: sh, ferr: v === 0 }); st = v ? 'idle' : 'wait'; continue; }
+        }
+        if (cur === 15) {
+            if (st === 'start') { st = 'data'; n = 0; }
+            else if (st === 'data') { if (n < 7) n++; else st = 'stop'; }
+        }
+    }
+    let wrong = 0;
+    for (let i = 0; i < 64; i++) if (i >= got.length || got[i].b !== sent[i] || got[i].ferr) wrong++;
+    return wrong;
+}
+function vDrift(root) {
+    let pct = 0;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' }), note = h('div');
+    function draw() {
+        const tb = 1 + pct / 100, W = 640, x0 = 20, w = (W - 40) / 11, g = svg(W, 150, 'The sender bits and the receiver sampling points');
+        T(g, x0, 16, 'the sender\'s bits (' + (pct > 0 ? 'slow' : pct < 0 ? 'fast' : 'exact') + ')', 'sv-s');
+        const bits = frameBits(0x41, 'none', 1);
+        bits.forEach((b, i) => { R(g, x0 + i * tb * w + w + 1, 24, tb * w - 2, 46, FIELD_CLS[b.f], 4); T(g, x0 + i * tb * w + w + tb * w / 2, 52, b.l, 'sv-s', 'middle'); });
+        T(g, x0, 96, 'where the receiver reads each bit (the middle, on its own clock)', 'sv-s');
+        let bad = 0;
+        for (let k = 0; k < 10; k++) {
+            const t = k + 0.5 + 0.02, x = x0 + w + t * w, inBit = Math.floor(t / tb) === k;
+            if (!inBit) bad++;
+            L(g, x, 22, x, 120, inBit ? 'sv-line ok' : 'sv-line bad');
+            g.append(s('circle', { cx: x, cy: 118, r: 4, class: inBit ? 'sv-box ok' : 'sv-box bad' }));
+        }
+        fig.replaceChildren(g);
+        const sim = rxSimulate(pct), meas = LAB1_MEASURED[String(pct)];
+        put(out, kv('one frame', bad ? bad + ' bit(s) misread' : 'read correctly', bad ? 'bad' : 'ok'),
+            kv('64 frames back to back', sim + ' wrong', sim ? 'bad' : 'ok'),
+            kv('Questa, Lab 1', meas === undefined ? '— (not measured)' : meas + ' wrong', meas ? 'bad' : meas === 0 ? 'ok' : ''));
+        put(note, msg('The middle row is a model: the receiver lines up on the start bit, then reads the middle of each bit on its own clock [[est]]. The middle number runs the logic of `uart_rx.vhd` in this page on the same 64 bytes as Lab 1, frames back to back. The right number is what Questa measured [[sim]].'));
+    }
+    add(root, h('div', { class: 'sls' }, slider('sender baud offset', -8, 8, 1, pct, v => (v > 0 ? '+' : '') + v + ' %', v => { pct = v; draw(); })), fig, out, note);
+    draw();
+}
+
+/* ---------- 1.5 parity, framing errors, breaks ---------- */
+function vParity(root) {
+    let flips = new Set(), stopLow = false;
+    const BYTE = 0x41;
+    const tg = h('div', { class: 'toggles' }), out = h('div', { class: 'kvs' }), note = h('div');
+    function draw() {
+        const bits = frameBits(BYTE, 'even', 1);
+        put(tg, bits.map((b, i) => {
+            if (b.f === 'start') return null;
+            const isStop = b.f === 'stop';
+            const on = isStop ? stopLow : flips.has(i);
+            const bt = h('button', { type: 'button', 'aria-pressed': String(on), title: isStop ? 'pull the stop bit low' : 'flip this bit on the line' }, b.l);
+            bt.addEventListener('click', () => { if (isStop) stopLow = !stopLow; else if (flips.has(i)) flips.delete(i); else flips.add(i); draw(); });
+            return bt;
+        }));
+        const line = bits.map((b, i) => (flips.has(i) ? b.v ^ 1 : b.v));
+        if (stopLow) line[10] = 0;
+        const data = line.slice(1, 9).reduce((a, b, i) => a | (b << i), 0);
+        let ones = 0;
+        for (let i = 1; i <= 9; i++) ones += line[i];
+        const perr = ones % 2 !== 0, ferr = line[10] === 0;
+        put(out, kv('received', 'x"' + hex2(data) + '" \'' + (data >= 32 && data < 127 ? String.fromCharCode(data) : '.') + '\'', data === BYTE ? 'ok' : 'bad'),
+            kv('parity check', perr ? 'error' : 'OK', perr ? 'bad' : 'ok'), kv('stop bit', ferr ? 'framing error' : 'OK', ferr ? 'bad' : 'ok'));
+        const n = flips.size;
+        put(note, msg(n === 0 && !ferr ? 'Sending \'A\' = x"41" as 8E1. Click bits to flip them on the line, or pull the stop bit low.'
+            : n % 2 === 1 ? 'An odd number of flipped bits: the parity check catches it [[sim]].'
+            : n > 0 ? 'An even number of flipped bits: parity is fooled, the byte is wrong and nobody knows. Lab 1 flips bits 3 and 5 of \'A\' and receives \'i\' without a parity error [[sim]].'
+            : 'A low stop bit is a framing error: wrong baud rate, noise, or a break.', n > 0 && n % 2 === 0 ? 'bad' : null));
+    }
+    add(root, h('p', { class: 'hint' }, 'Flip bits of \'A\' on the line (8E1):'), tg, out, note);
+    draw();
+}
+
+/* ======================================================================  SPI */
+
+/* ---------- 2.1 the wires ---------- */
+function vSpiWires(root) {
+    let cur = 0;
+    const SL = [['N25Q128', 'serial flash'], ['ADC', 'converter'], ['display', 'controller']];
+    const fig = h('div', { class: 'figwrap' }), note = h('div');
+    function draw() {
+        const g = svg(640, 230, 'One SPI master and three slaves');
+        R(g, 20, 60, 130, 120, 'sv-box acc');
+        T(g, 85, 112, 'master', 'sv-h', 'middle'); T(g, 85, 130, 'drives SCLK, MOSI, CS#', 'sv-s', 'middle');
+        const wires = [['SCLK', 78], ['MOSI', 98], ['MISO', 118]];
+        wires.forEach(([n, y]) => { L(g, 150, y, 600, y, n === 'MISO' ? 'sv-line ok' : 'sv-line acc'); T(g, 160, y - 4, n, 'sv-m'); });
+        SL.forEach((sl, i) => {
+            const x = 260 + i * 120, on = i === cur;
+            pickBox(g, x, 140, 100, 52, sl[0], sl[1], on ? 'acc' : '', () => { cur = i; draw(); });
+            wires.forEach(([n, y]) => L(g, x + 50, y, x + 50, 140, n === 'MISO' && !on ? 'sv-dash' : 'sv-line'));
+            P(g, `M150 ${150 + i * 14} L${215 + i * 6} ${150 + i * 14} L${215 + i * 6} ${205 + i * 6} L${x + 20} ${205 + i * 6} L${x + 20} 192`, on ? 'sv-line bad' : 'sv-line');
+            T(g, 156, 147 + i * 14, 'CS' + i + '# ' + (on ? '0' : '1'), on ? 'sv-m sv-badt' : 'sv-s');
+        });
+        T(g, 320, 30, 'click a slave to select it', 'sv-s', 'middle');
+        fig.replaceChildren(g);
+        put(note, msg(`CS${cur}# is low: only the ${SL[cur][0]} listens and drives MISO; the others keep MISO floating. SCLK and MOSI go to everyone. Four wires for one slave, one more chip select for every extra slave.`));
+    }
+    add(root, fig, note);
+    draw();
+}
+
+/* ---------- 2.2 the four modes ---------- */
+function vSpiModes(root) {
+    let cpol = 0, cpha = 0;
+    const fig = h('div', { class: 'figwrap' }), note = h('div');
+    const TX = 0xA5, RXB = 0x3C;
+    function draw() {
+        const W = 640, x0 = 70, hp = 17, g = svg(W, 230, 'SPI waveforms for the chosen mode');
+        const rows = [['CS#', 34], ['SCLK', 84], ['MOSI', 134], ['MISO', 184]];
+        rows.forEach(([n, y]) => T(g, 8, y + 4, n, 'sv-m'));
+        const lead = 2, total = lead + 16 + 2;             // half periods
+        // chip select
+        wave(g, x0, 34, [1].concat(Array(total).fill(0), [1]), hp, 10, 'info');
+        // SCLK
+        const sck = [cpol];
+        for (let k = 0; k < total; k++) {
+            const e = k - lead;
+            sck.push(e >= 0 && e < 16 ? ((e % 2 === 0) ? cpol ^ 1 : cpol) : cpol);
+        }
+        sck.push(cpol);
+        wave(g, x0, 84, sck, hp, 10, 'info');
+        // data: with CPHA 0 bit i is valid in half periods [2i-1, 2i+1) around leading edge i; with CPHA 1 it changes on leading edges
+        const dat = v => {
+            const out = [null];
+            for (let k = 0; k < total; k++) {
+                const e = k - lead;
+                let bit = null;
+                if (cpha === 0) { const i = Math.floor((e + 1) / 2); if (e >= -1 && i < 8) bit = (v >> (7 - i)) & 1; }
+                else { const i = Math.floor(e / 2); if (e >= 0 && i < 8) bit = (v >> (7 - i)) & 1; }
+                out.push(bit);
+            }
+            out.push(null);
+            return out;
+        };
+        wave(g, x0, 134, dat(TX), hp, 10);
+        wave(g, x0, 184, dat(RXB), hp, 10, 'ok');
+        // sample edges
+        for (let e = 0; e < 16; e++) {
+            const leading = e % 2 === 0, sample = leading === (cpha === 0);
+            if (!sample) continue;
+            const x = x0 + (lead + e + 1) * hp;
+            L(g, x, 58, x, 200, 'sv-dash');
+            g.append(s('polygon', { points: `${x - 4},210 ${x + 4},210 ${x},203`, class: 'sv-head acc' }));
+        }
+        T(g, x0, 224, '▲ sample edges: both sides read MOSI and MISO here', 'sv-s');
+        fig.replaceChildren(g);
+        const m = cpol * 2 + cpha;
+        put(note, msg(`Mode ${m}: SCLK idles ${cpol ? 'high' : 'low'}; data is sampled on the ${cpha ? 'second' : 'first'} edge of each pulse (${(cpol ^ cpha) ? 'falling' : 'rising'} edges) and changes on the other one. ` +
+            (cpha === 0 ? 'With CPHA = 0 the first bit must be on the wire before the first edge.' : 'With CPHA = 1 the first edge shifts the first bit out.') +
+            ' Master sends x"A5", the slave x"3C". Lab 2 loops MOSI back to MISO and receives x"A5" in all four modes [[sim]].'));
+    }
+    add(root, h('div', { class: 'row' }, seg('CPOL', [[0, '0'], [1, '1']], cpol, v => { cpol = v; draw(); }),
+        seg('CPHA', [[0, '0'], [1, '1']], cpha, v => { cpha = v; draw(); })), fig, note);
+    draw();
+}
+
+/* ---------- 2.3 talking to a flash ---------- */
+const FLASH_IMAGE = [].concat(Array(32).fill(0xFF), [0x00, 0x00, 0x00, 0xBB, 0x11, 0x22, 0x00, 0x44], Array(8).fill(0xFF),
+    [0xAA, 0x99, 0x55, 0x66, 0x20, 0x00, 0x00, 0x00, 0x30, 0x02, 0x20, 0x01, 0x00, 0x00, 0x00, 0x00]);
+function vSpiFlash(root) {
+    let c = '9F';
+    const box = h('div'), note = h('div');
+    const CMDS = {
+        '9F': { name: 'READ ID', mosi: ['9F', '00', '00', '00'], miso: ['--', '20', 'BA', '18'], mean: ['command', 'manufacturer: Micron', 'type: 3 V serial NOR', 'capacity: 2^24 bytes = 128 Mbit'] },
+        '05': { name: 'READ STATUS', mosi: ['05', '00'], miso: ['--', '00'], mean: ['command', 'not busy, writes disabled'] },
+        '03': { name: 'READ', mosi: ['03', '00', '00', '00', '00', '00', '00', '00'], miso: ['--', '--', '--', '--', 'FF', 'FF', 'FF', 'FF'], mean: ['command', 'address 23..16', 'address 15..8', 'address 7..0', 'data from 000000h', '... and on, until CS# goes high', '', ''] }
+    };
+    function draw() {
+        const d = CMDS[c];
+        put(box, table(['byte', 'MOSI (master)', 'MISO (flash)', 'meaning'], d.mosi.map((m, i) => [String(i + 1), m, d.miso[i], d.mean[i]]), { mono: [0, 1, 2] }));
+        put(note, msg(`CS# low, then ${d.name}: the master clocks out the command and as many bytes as it needs; the flash answers on MISO in the same clock pulses. While the master sends, MISO floats (--). Lab 2 reads 20 BA 18 in mode 0 and in mode 3 [[sim]].`));
+    }
+    add(root, h('div', { class: 'row' }, seg('command', [['9F', '9Fh READ ID'], ['05', '05h READ STATUS'], ['03', '03h READ']], c, v => { c = v; draw(); })), box, note);
+    draw();
+}
+
+/* ---------- 2.4 what is in the flash ---------- */
+function vSpiDump(root) {
+    const g = h('div', { class: 'hexdump' }), note = h('div');
+    const kind = i => i < 32 ? 'pad' : i < 40 ? 'bw' : i < 48 ? 'pad' : i < 52 ? 'sync' : 'pkt';
+    const INFO = {
+        pad: 'Padding (FFh). The FPGA ignores it.',
+        bw: 'Bus-width detection, 000000BB 11220044: tells the FPGA whether it reads the flash 1, 2 or 4 bits at a time.',
+        sync: 'The sync word AA995566. Configuration starts here; everything before is preamble.',
+        pkt: 'The first configuration packets: a NOOP (20000000), then register writes.'
+    };
+    for (let r = 0; r < 4; r++) {
+        const row = h('div', { class: 'hexrow' }, h('span', { class: 'hexaddr' }, hex2(16 * r) + ':'));
+        for (let i = 0; i < 16; i++) {
+            const k = 16 * r + i, b = h('button', { type: 'button', class: 'hexb ' + kind(k) }, hex2(FLASH_IMAGE[k]));
+            b.addEventListener('click', () => put(note, msg(`Offset ${k} (${hex2(k)}h): ` + INFO[kind(k)])));
+            add(row, b);
+        }
+        add(g, row);
+    }
+    add(root, h('p', { class: 'hint' }, 'The first 64 bytes Lab 2 reads from address 000000h with 03h. Click a byte:'), g, note,
+        msg('A bitstream in a flash starts like this (UG470) [[doc]]: padding, the bus-width pattern, padding, the sync word at offset 48 in this model, then the packets. Lab 2 finds the sync word in what it reads back [[sim]].'));
+    put(note, msg('Click a byte.'));
+}
+
+/* ---------- 2.5 chip select and HOLD# ---------- */
+function vSpiRules(root) {
+    let csGap = false, hold = false;
+    const out = h('div', { class: 'kvs' }), note = h('div');
+    function draw() {
+        const broken = csGap || hold;
+        put(out, kv('ID read back', broken ? 'FF FF FF' : '20 BA 18', broken ? 'bad' : 'ok'));
+        put(note, msg(csGap ? 'CS# went high after 9Fh: the command ended there. The next bytes look like a new command (00h does nothing), MISO floats, the pull-up reads FFh [[sim]].'
+            : hold ? 'HOLD# (DQ3) is low: the flash ignores SCLK and floats MISO [[sim]]. In single-SPI mode a design must drive DQ3 (and DQ2, W#) high.'
+            : 'A normal READ ID: CS# low for the whole command, HOLD# high.', broken ? 'bad' : 'ok'));
+    }
+    add(root, h('div', { class: 'row' },
+        seg('CS# between 9Fh and the answer', [[false, 'stays low'], [true, 'goes high']], csGap, v => { csGap = v; draw(); }),
+        seg('HOLD#', [[false, 'high'], [true, 'low']], hold, v => { hold = v; draw(); })), out, note);
+    draw();
+}
+
+/* ---------- 2.6 the round trip ---------- */
+function vSpiSpeed(root) {
+    let mhz = 25, wire = 3, tco = 7;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' });
+    function draw() {
+        const half = 500 / mhz, trip = wire + tco + wire, ok = trip < half;
+        const W = 640, x0 = 60, span = Math.max(half * 1.6, trip * 1.25, 20), sc = (W - x0 - 20) / span;
+        const g = svg(W, 170, 'The round trip of a MISO bit');
+        const X = t => x0 + t * sc;
+        T(g, 8, 44, 'SCLK', 'sv-m'); T(g, 8, 104, 'MISO', 'sv-m'); T(g, 8, 134, 'at master', 'sv-s');
+        P(g, `M${X(-3)} 30 L${X(0)} 30 L${X(0)} 54 L${X(half)} 54 L${X(half)} 30 L${X(span)} 30`, 'sv-wave info');
+        T(g, X(0), 20, 'falling edge: the flash shifts', 'sv-s', 'middle');
+        T(g, X(half), 70, 'rising edge: the master samples', 'sv-s', 'middle');
+        R(g, X(0), 92, trip * sc, 22, ok ? 'sv-band' : 'sv-band bad', 3);
+        T(g, X(trip / 2), 107, `${wire} + ${tco} + ${wire} = ${trip} ns`, 'sv-m', 'middle');
+        L(g, X(half), 24, X(half), 150, ok ? 'sv-line ok' : 'sv-line bad');
+        L(g, X(trip), 88, X(trip), 150, 'sv-dash');
+        T(g, X(trip), 162, 'new bit arrives', 'sv-s', 'middle');
+        fig.replaceChildren(g);
+        put(out, kv('half period', fmt(half, 1) + ' ns'), kv('round trip', trip + ' ns'), kv('margin', fmt(half - trip, 1) + ' ns', ok ? 'ok' : 'bad'));
+    }
+    add(root, h('div', { class: 'sls' },
+        slider('SCLK', 5, 80, 5, mhz, v => v + ' MHz', v => { mhz = v; draw(); }),
+        slider('wire, each way', 0, 6, 1, wire, v => v + ' ns', v => { wire = v; draw(); }),
+        slider('flash clock-to-output', 5, 8, 1, tco, v => v + ' ns', v => { tco = v; draw(); })), fig, out,
+        h('div', { style: 'margin-top:.9rem' }, table(['SCLK', 'half period', 'ID read in Lab 2'], [
+            ['5 MHz', '100 ns', '20 BA 18'], ['10 MHz', '50 ns', '20 BA 18'], ['25 MHz', '20 ns', '20 BA 18'], ['50 MHz', '10 ns', h('span', { class: 'fail' }, '10 DD 0C')]], { mono: [2] })),
+        msg('Lab 2 uses 3 ns of wire each way and a 7 ns flash: a 13 ns round trip. At 50 MHz the master reads every bit before it arrives and gets the previous one [[sim]]. The N25Q128 allows 54 MHz for READ and 108 MHz for its other commands [[doc]]; to get there a master samples later than the edge.'));
+    draw();
+}
+
+/* ======================================================================  I2C */
+
+/* ---------- 3.1 open drain ---------- */
+function vWiredAnd(root) {
+    const pull = [false, false, false];
+    let push = false;
+    const fig = h('div', { class: 'figwrap' }), note = h('div');
+    const NAMES = ['master', 'EEPROM 50h', 'sensor 48h'];
+    function draw() {
+        const low = pull.some(Boolean);
+        const g = svg(640, 200, 'An open-drain line with a pull-up');
+        L(g, 40, 60, 600, 60, low ? 'sv-line bad' : 'sv-line ok');
+        T(g, 40, 50, 'SDA = ' + (low ? '0' : '1'), low ? 'sv-mb sv-badt' : 'sv-mb sv-okt');
+        R(g, 560, 18, 26, 34, 'sv-box', 3); T(g, 573, 14, '+3.3 V', 'sv-s', 'middle'); T(g, 600, 40, 'pull-up', 'sv-s');
+        NAMES.forEach((n, i) => {
+            const x = 90 + i * 160;
+            L(g, x + 50, 60, x + 50, 110, 'sv-line');
+            pickBox(g, x, 110, 100, 50, n, pull[i] ? 'pulls low' : 'lets go', pull[i] ? 'bad' : '', () => { pull[i] = !pull[i]; draw(); });
+        });
+        T(g, 320, 190, 'click a device to make it pull SDA low', 'sv-s', 'middle');
+        fig.replaceChildren(g);
+        put(note, push && pull.some(Boolean) && pull.some(x => !x)
+            ? msg('With push-pull outputs a device that drives 1 while another drives 0 shorts the supply through both: that is why I2C devices never drive high.', 'bad')
+            : msg(low ? 'One pull is enough: the line is low. A low always wins, so this is a wired AND of every device.' : 'Nobody pulls: the resistor makes the line high. Lab 3 checks both cases [[sim]].', low ? null : 'ok'));
+    }
+    add(root, h('div', { class: 'row' }, seg('outputs', [[false, 'open drain'], [true, 'what if push-pull?']], push, v => { push = v; draw(); })), fig, note);
+    draw();
+}
+
+/* ---------- 3.2 pull-up resistors ---------- */
+function vPullup(root) {
+    let rk = 4.7, cp = 100;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' }), note = h('div');
+    function draw() {
+        const tau = rk * 1e3 * cp * 1e-12 * 1e9, tr = 0.8473 * tau;           // ns
+        const W = 640, x0 = 50, y0 = 150, y1 = 30, span = Math.max(1200, tr * 2.2), sc = (W - x0 - 20) / span;
+        const g = svg(W, 185, 'A rising edge through the pull-up');
+        const Y = v => y0 - v * (y0 - y1);
+        L(g, x0, Y(0.3), W - 20, Y(0.3), 'sv-dash'); T(g, x0 - 6, Y(0.3) + 4, '30 %', 'sv-s', 'end');
+        L(g, x0, Y(0.7), W - 20, Y(0.7), 'sv-dash'); T(g, x0 - 6, Y(0.7) + 4, '70 %', 'sv-s', 'end');
+        let d = '';
+        for (let i = 0; i <= 200; i++) { const t = i / 200 * span; d += (i ? ' L' : 'M') + (x0 + t * sc).toFixed(1) + ' ' + Y(1 - Math.exp(-t / tau)).toFixed(1); }
+        P(g, d, 'sv-wave');
+        [[300, '400 kHz limit'], [1000, '100 kHz limit']].forEach(([t, l]) => { if (t <= span) { L(g, x0 + t * sc, y1, x0 + t * sc, y0, 'sv-line bad'); T(g, x0 + t * sc + 4, y1 + 10, l, 'sv-s'); } });
+        T(g, W - 20, 178, fmt(span, 0) + ' ns', 'sv-s', 'end'); T(g, x0, 178, '0', 'sv-s');
+        fig.replaceChildren(g);
+        const rmin = (3.3 - 0.4) / 3e-3 / 1e3;
+        put(out, kv('rise time 30→70 %', fmt(tr, 0) + ' ns', tr <= 300 ? 'ok' : tr <= 1000 ? 'acc' : 'bad'),
+            kv('smallest R', fmt(rmin, 2) + ' kΩ'), kv('largest R, 100 kHz', fmt(1000 / (0.8473 * cp * 1e-3), 1) + ' kΩ'),
+            kv('largest R, 400 kHz', fmt(300 / (0.8473 * cp * 1e-3), 1) + ' kΩ'));
+        put(note, rk < rmin ? msg('Too strong: a device can sink only 3 mA at 0.4 V, so below about 1 kΩ it cannot pull the line low enough [[doc]].', 'bad')
+            : tr > 1000 ? msg('Too weak for either speed: the edge takes longer than the 1000 ns standard mode allows.', 'bad')
+            : tr > 300 ? msg('Good for 100 kHz, too slow for 400 kHz (300 ns).', 'acc')
+            : msg('Fast enough for 400 kHz. Rise time = 0.8473 R C between 30 % and 70 % [[doc]].', 'ok'));
+    }
+    add(root, h('div', { class: 'sls' },
+        slider('pull-up R', 0.5, 22, 0.1, rk, v => fmt(v, 1) + ' kΩ', v => { rk = v; draw(); }),
+        slider('bus capacitance', 10, 400, 10, cp, v => v + ' pF', v => { cp = v; draw(); })), fig, out, note);
+    draw();
+}
+
+/* ---------- 3.3 a transaction ---------- */
+function vI2cFrame(root) {
+    let addr = 0x50, rw = 0, nbytes = 1;
+    const fig = h('div', { class: 'figwrap' }), note = h('div');
+    const DATA = { 0x50: [0x48, 0x65], 0x48: [0x19, 0x80] };
+    function draw() {
+        const present = addr === 0x50 || addr === 0x48;
+        const units = [];                                 // [sclHigh, sdaLevel, label] per character
+        const bitc = (v, lab) => { units.push([0, v, ''], [0, v, ''], [1, v, lab], [1, v, ''], [0, v, '']); };
+        units.push([1, 1, ''], [1, 1, ''], [1, 0, 'S'], [1, 0, ''], [0, 0, '']);
+        const ab = (addr << 1) | rw;
+        for (let i = 7; i >= 0; i--) bitc((ab >> i) & 1, i === 0 ? (rw ? 'R' : 'W') : String((ab >> i) & 1));
+        bitc(present ? 0 : 1, present ? 'A' : 'N');
+        if (present) {
+            for (let k = 0; k < nbytes; k++) {
+                const b = rw ? DATA[addr][k] : 0x10 + k;
+                for (let i = 7; i >= 0; i--) bitc((b >> i) & 1, String((b >> i) & 1));
+                const last = k === nbytes - 1;
+                bitc(rw && last ? 1 : 0, rw ? (last ? 'N' : 'A') : 'A');
+            }
+        }
+        units.push([0, 0, ''], [1, 0, ''], [1, 1, 'P'], [1, 1, '']);
+        const W = 640, cw = Math.min(10, (W - 60) / units.length), x0 = 40, g = svg(W, 150, 'An I2C transaction');
+        T(g, 4, 44, 'SCL', 'sv-m'); T(g, 4, 94, 'SDA', 'sv-m');
+        wave(g, x0, 44, units.map(u => u[0]), cw, 10, 'info');
+        wave(g, x0, 94, units.map(u => u[1]), cw, 10);
+        units.forEach((u, i) => { if (u[2]) T(g, x0 + i * cw + cw / 2, 128, u[2], /[SPAN]|R|W/.test(u[2]) ? 'sv-mb sv-acc' : 'sv-s', 'middle'); });
+        fig.replaceChildren(g);
+        const hexb = hex2(ab);
+        put(note, msg(present
+            ? `START, ${hex2(addr)}h + ${rw ? 'R' : 'W'} = ${hexb}h, ACK from the slave, ` + (rw ? `${nbytes} byte(s) from the slave, the master ACKs all but the last and NACKs that one,` : `${nbytes} byte(s) from the master, each ACKed by the slave,`) + ' STOP.'
+            : `Nobody owns ${hex2(addr)}h: SDA stays high in the ninth pulse (NACK), and the master stops. Lab 3 checks this with 51h [[sim]].`, present ? null : 'bad'));
+    }
+    add(root, h('div', { class: 'row' },
+        seg('address', [[0x50, '50h EEPROM'], [0x48, '48h sensor'], [0x51, '51h nobody']], addr, v => { addr = v; draw(); }),
+        seg('R/W', [[0, 'write'], [1, 'read']], rw, v => { rw = v; draw(); }),
+        seg('data bytes', [[1, '1'], [2, '2']], nbytes, v => { nbytes = v; draw(); })), fig, note);
+    draw();
+}
+
+/* ---------- 3.4 a bus scan ---------- */
+function vScan(root) {
+    let pos = -1, timer = null;
+    const grid = h('div', { class: 'i2cgrid' }), note = h('div');
+    const FOUND = new Set([0x48, 0x50]);
+    const cells = [];
+    add(grid, h('span', { class: 'gh' }, ''));
+    for (let c = 0; c < 16; c++) add(grid, h('span', { class: 'gh' }, c.toString(16)));
+    for (let r = 0; r < 8; r++) {
+        add(grid, h('span', { class: 'gh' }, hex2(r * 16)));
+        for (let c = 0; c < 16; c++) {
+            const a = r * 16 + c, e = h('span', { class: 'gc' + (a < 8 || a > 0x77 ? ' res' : '') }, a < 8 || a > 0x77 ? '' : '..');
+            cells.push(e);
+            add(grid, e);
+        }
+    }
+    function show() {
+        cells.forEach((e, a) => {
+            if (a < 8 || a > 0x77) return;
+            e.classList.remove('cur', 'hit');
+            if (a <= pos) { e.textContent = FOUND.has(a) ? hex2(a).toLowerCase() : '--'; if (FOUND.has(a)) e.classList.add('hit'); }
+            else e.textContent = '..';
+            if (a === pos) e.classList.add('cur');
+        });
+    }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } }
+    const scanBtn = btn('▶ Scan', () => {
+        stop(); pos = 7;
+        timer = every(REDUCED ? 5 : 40, () => { pos++; show(); if (pos >= 0x77) { stop(); put(note, msg('Found 48h and 50h, the same two devices Lab 3\'s scan finds [[sim]]. Each try is START, address + W, STOP: 112 tries took 15 ms at 100 kHz.', 'ok')); } });
+    }, 'pri');
+    add(root, h('div', { class: 'row' }, scanBtn), grid, note);
+    put(note, msg('The layout of `i2cdetect`. Addresses 00h–07h and 78h–7Fh are reserved by the I2C specification [[doc]].'));
+    show();
+}
+
+/* ---------- 3.5 EEPROM writes and reads ---------- */
+function vEeprom(root) {
+    let mode = 'w';
+    const box = h('div'), note = h('div');
+    const seqW = [['S', 'm'], ['A0', 'm'], ['A', 's'], ['10', 'm'], ['A', 's'], ['\'I\'', 'm'], ['A', 's'], ['\'2\'', 'm'], ['A', 's'], ['\'C\'', 'm'], ['A', 's'], ['\'!\'', 'm'], ['A', 's'], ['P', 'm']];
+    const seqR = [['S', 'm'], ['A0', 'm'], ['A', 's'], ['10', 'm'], ['A', 's'], ['Sr', 'm'], ['A1', 'm'], ['A', 's'], ['\'I\'', 's'], ['A', 'm'], ['\'2\'', 's'], ['A', 'm'], ['\'C\'', 's'], ['A', 'm'], ['\'!\'', 's'], ['N', 'm'], ['P', 'm']];
+    function draw() {
+        const seq = mode === 'w' ? seqW : seqR;
+        put(box, h('div', { class: 'i2cseq' }, seq.map(([t, who]) => h('span', { class: 'q2 ' + who + (t.length === 1 && t !== 'S' && t !== 'P' ? ' ack' : '') }, t))),
+            h('p', { class: 'hint', style: 'margin-top:.6rem' }, 'orange: the master drives SDA · green: the slave drives SDA · A = ACK, N = NACK, Sr = repeated START'));
+        put(note, msg(mode === 'w'
+            ? 'A write: the address with W, then the word address inside the EEPROM (10h), then the data. The EEPROM ACKs every byte; its pointer moves on by one per byte [[sim]].'
+            : 'A read from a word address: write the word address first, then turn the bus around with a repeated START and the address with R. The slave sends, the master ACKs every byte it wants more of and NACKs the last. Lab 3 reads "I2C!" back this way [[sim]].'));
+    }
+    add(root, h('div', { class: 'row' }, seg('transfer', [['w', 'write "I2C!" at 10h'], ['r', 'read it back']], mode, v => { mode = v; draw(); })), box, note);
+    draw();
+}
+
+/* ---------- 3.6 clock stretching ---------- */
+function vStretch(root) {
+    let st = 30;
+    const fig = h('div', { class: 'figwrap' }), out = h('div', { class: 'kvs' });
+    function draw() {
+        const W = 640, x0 = 30, g = svg(W, 130, 'SCL with a stretched low phase');
+        const segs = [];
+        for (let b = 0; b < 3; b++) segs.push(['low', 6], ['high', 4]);
+        segs.push(['low', 6 + st], ['high', 4]);
+        for (let b = 0; b < 2; b++) segs.push(['low', 6], ['high', 4]);
+        const tot = segs.reduce((a, s2) => a + s2[1], 0), sc = (W - x0 - 20) / tot;
+        let t = 0, d = '';
+        segs.forEach(([k, len], i) => {
+            const y = k === 'high' ? 40 : 70;
+            d += (i ? ' L' : 'M') + (x0 + t * sc).toFixed(1) + ' ' + y + ' L' + (x0 + (t + len) * sc).toFixed(1) + ' ' + y;
+            if (i === 6 && st > 0) { R(g, x0 + (t + 6) * sc, 76, st * sc, 14, 'sv-band bad', 3); T(g, x0 + (t + 6 + st / 2) * sc, 106, 'the slave holds SCL low: the master waits', 'sv-s', 'middle'); }
+            t += len;
+        });
+        P(g, d, 'sv-wave info');
+        T(g, x0, 20, 'SCL around the end of a byte (µs)', 'sv-s');
+        fig.replaceChildren(g);
+        put(out, kv('stretch', st + ' µs'), kv('a normal low phase', '6 µs'), kv('two-byte read in Lab 3', st === 30 ? '617 µs (measured)' : '—'));
+    }
+    add(root, h('div', { class: 'sls' }, slider('the slave needs', 0, 60, 5, st, v => v + ' µs', v => { st = v; draw(); })), fig, out,
+        msg('A slave that needs time after a byte keeps SCL low. The master lets go of SCL and then waits until SCL really reads high before it counts its high time. Lab 3\'s device at 48h stretches by 30 µs; the master measured a longest low phase of 30 µs and read its bytes 19h 80h intact [[sim]].'));
+    draw();
+}
+
+/* ======================================================================  choosing */
+function vChoose(root) {
+    add(root, table(['', 'UART', 'SPI', 'I2C'], [
+        ['Wires', 'TX, RX', 'SCLK, MOSI, MISO, a CS# per slave', 'SCL, SDA'],
+        ['Clock', 'none: agree on a baud rate', 'from the master', 'from the master; slaves may stretch it'],
+        ['Direction', 'full duplex', 'full duplex', 'half duplex'],
+        ['Devices', 'two', 'one CS# per slave', 'many, by 7-bit address'],
+        ['Framing', 'start/stop bit per byte', 'CS# per command', 'START/STOP per transfer, ACK per byte'],
+        ['Error check', 'optional parity', 'none', 'ACK: somebody listened'],
+        ['Speed', '9600 baud to Mbaud', 'MHz, up to 100 MHz and more', '100 kHz, 400 kHz, 1 MHz'],
+        ['Typical', 'consoles, GPS, modems', 'flash, ADCs, displays', 'sensors, EEPROMs, power chips']
+    ]), h('p', { class: 'h4' }, 'What goes wrong'),
+    h('div', { class: 'lessons' },
+        h('div', { class: 'lesson' }, h('b', null, 'UART'), 'Baud rates that drift apart (keep the total under 2 %), TX and RX swapped, RS-232 levels on an FPGA pin, no flow control.'),
+        h('div', { class: 'lesson' }, h('b', null, 'SPI'), 'The wrong mode, a chip select treated as an enable, HOLD# left floating, a clock faster than the round trip.'),
+        h('div', { class: 'lesson' }, h('b', null, 'I2C'), 'Missing or mis-sized pull-ups, 7-bit versus 8-bit addresses, a master that ignores clock stretching, a bus stuck low after a reset.')));
+}
+function vSummary(root) {
+    add(root, table(['Lab', 'What it shows', 'Checked with'], [
+        ['1 UART', 'frames, 16x oversampling, parity, framing errors and breaks, baud mismatch, glitches', CHECKS(1).length + ' checks pass in Questa [[sim]]'],
+        ['2 SPI', 'the four modes, a flash\'s ID and memory, CS# and HOLD#, the round-trip speed limit', CHECKS(2).length + ' checks pass in Questa [[sim]]'],
+        ['3 I2C', 'open drain, START/STOP, ACK, a bus scan, EEPROM writes and reads, clock stretching', CHECKS(3).length + ' checks pass in Questa [[sim]]'],
+        ['all', 'every VHDL file', 'VHDL-LS: no errors, no warnings']
+    ], { mono: [0] }),
+    h('div', { class: 'head-links' },
+        h('a', { class: 'btn btn-primary', href: 'https://github.com/BerkmKuzu1/UART-SPI-I2C-Practice', target: '_blank', rel: 'noopener' }, 'Get the labs'),
+        h('a', { class: 'btn', href: 'serdes.html' }, 'The SerDes course'),
+        h('a', { class: 'btn', href: 'projects.html' }, 'More projects')));
+}
+
+/* ======================================================================
+   The course
+   ====================================================================== */
+const S = (d, r, f) => ({ d, r, f });          // source chip: document, reference, repo file
+const RP = f => S('repo', f, f);
+
+const CH = [
+  { t: 'Start here', k: 'what this course is', screens: [
+    { t: 'Three buses, three labs', v: vIntro,
+      plain: 'Almost every chip on a board talks over one of three serial buses. This course builds each of them in VHDL and shows, step by step, how the bits actually move.',
+      notes: ['**The labs:** a UART, an SPI master with a model of a serial flash, and an I2C master with two slaves on one bus. Each testbench narrates what it does and checks its own results.',
+        '**Honest labels:** [[sim]] marks a result from the Questa runs of the labs, [[doc]] a fact from a data sheet or specification, [[est]] a model drawn by this page.',
+        '**Keys:** ← and → move between screens. Every figure reacts to buttons and sliders.'],
+      repo: 'Everything comes from the open repository **UART-SPI-I2C-Practice**: `python tools/run.py all` runs the three labs in Questa.',
+      src: [RP('README.md')] }
+  ] },
+  { t: 'UART', k: 'one wire, no clock', screens: [
+    { t: 'The frame', v: vUartFrame,
+      plain: 'A UART byte travels like a parcel with a label in front and a seal behind: a start bit, the eight data bits, maybe a parity bit, a stop bit.',
+      notes: ['The line **idles high**. A start bit (low) tells the receiver "a byte comes now".',
+        'The data goes **LSB first**, then an optional parity bit, then one or two stop bits (high). 8N1 is the usual setting: 8 data bits, no parity, 1 stop bit, so 10 bits per byte.',
+        'There is **no clock wire**: both ends agree on the baud rate in advance.'],
+      repo: '`lab1_uart/uart_tx.vhd` sends exactly this frame; Step 1 of the testbench samples the line in the middle of every bit and prints `0101010101` for \'U\' [[sim]].',
+      src: [RP('lab1_uart/uart_tx.vhd')] },
+    { t: 'Baud rates from a clock', v: vBaud,
+      plain: 'Dividing 100 MHz by 115200 does not give a whole number. Round it and the UART runs a little fast or slow; at high baud rates, too much.',
+      notes: ['One bit at 115200 baud lasts **8.68 µs**; an 8N1 frame 86.8 µs.',
+        'A receiver needs a sample clock at **16 × the baud rate**. A whole-number divider can be several percent off at fast rates.',
+        '`tick_gen` **accumulates** instead: it adds the rate on every clock and ticks on overflow, exact on average.'],
+      src: [RP('lab1_uart/tick_gen.vhd')] },
+    { t: 'Sixteen samples and a vote', v: vOversample,
+      plain: 'Look at the line sixteen times per bit, read the middle three, and let them vote. One bad sample cannot change the answer.',
+      notes: ['The first low sample marks the start edge to within **1/16 bit**.',
+        'Each bit is read from samples **7, 8 and 9** by majority, so a glitch shorter than a sample period cannot flip it.',
+        'A "start bit" that reads high in its middle was noise: the receiver goes back to waiting.'],
+      repo: '`lab1_uart/uart_rx.vhd`: `majority(win(1), win(0), s)` at `phase = 9`.',
+      src: [RP('lab1_uart/uart_rx.vhd')] },
+    { t: 'When the baud rates differ', v: vDrift,
+      plain: 'The receiver sets its watch at every start bit, then trusts it for ten bits. A small error grows until the last bit is read in the wrong place.',
+      notes: ['By the stop bit, 9.5 bits after the start edge, a 5 % difference moves the sampling point by almost **half a bit**.',
+        'A **fast** sender is worse: back to back, each start bit arrives early, the receiver notices it late, and the lag adds up frame after frame. In Lab 1 −4 % already loses most bytes, +5 % loses none [[sim]].',
+        'Rule of thumb: keep the total difference between the two ends below about **2 %**.'],
+      src: [RP('lab1_uart/tb_lab1.vhd')] },
+    { t: 'Parity, framing errors, breaks', v: vParity,
+      plain: 'A parity bit counts the ones. It notices one wrong bit, not two.',
+      notes: ['**Even parity** makes the number of ones (data + parity) even. One flipped bit breaks that; two flipped bits restore it.',
+        'A **low stop bit** is a framing error: often a wrong baud rate.',
+        'A line held low for a whole frame or longer is a **break**: data and stop bit all zero.'],
+      src: [RP('lab1_uart/uart_rx.vhd')] },
+    { t: 'What Lab 1 checked', v: vChecks(1),
+      plain: 'Twelve checks on frames, text, parity, framing, baud mismatch and glitches.',
+      src: [RP('lab1_uart/README.md')] },
+    { t: 'The full run', v: vRun(1),
+      plain: 'Lab 1 as Questa printed it: the testbench explains each step, then measures and checks.',
+      src: [RP('lab1_uart/tb_lab1.vhd')] },
+    { t: 'Check yourself', v: quiz([
+        ['How many bits does an 8N1 frame have?', ['8', '9', '10', '11'], 2, 'A start bit, 8 data bits and a stop bit: 10. At 115200 baud that is 11520 bytes per second.'],
+        ['Which bit of x"41" leaves first?', ['bit 7', 'bit 0', 'the parity bit', 'it depends on the receiver'], 1, 'UARTs send LSB first: bit 0 follows the start bit.'],
+        ['Two data bits flip on the line of an 8E1 link. What does the receiver report?', ['a parity error', 'a framing error', 'nothing: the byte is wrong and parity is fooled', 'a break'], 2, 'Two flips keep the number of ones even. Parity only catches an odd number of errors.']
+      ]) }
+  ] },
+  { t: 'SPI', k: 'a clock wire, full duplex', screens: [
+    { t: 'Four wires', v: vSpiWires,
+      plain: 'SPI adds what a UART lacks, a clock, and picks the slave with a wire of its own: the chip select.',
+      notes: ['The master drives **SCLK**, **MOSI** (master out, slave in) and one **CS#** per slave; the selected slave answers on **MISO**.',
+        'Every clock pulse moves one bit **each way**: SPI is always full duplex.',
+        'No addresses, no ACKs, no baud rate: the master decides how fast SCLK runs.'],
+      src: [RP('lab2_spi/spi_master.vhd')] },
+    { t: 'The four modes', v: vSpiModes,
+      plain: 'Two switches decide the clock\'s rest level and which of its edges carries the data. Master and slave must flip them the same way.',
+      notes: ['**CPOL**: the level SCLK idles at. **CPHA**: data sampled on the first (0) or second (1) edge of each pulse.',
+        'Modes 0 and 3 sample on rising edges, modes 1 and 2 on falling edges.',
+        'The N25Q128 flash supports modes 0 and 3 [[doc]].'],
+      src: [RP('lab2_spi/spi_master.vhd'), RP('lab2_spi/tb_lab2.vhd')] },
+    { t: 'Talking to a flash', v: vSpiFlash,
+      plain: 'A flash chip takes orders: one opcode byte, sometimes an address, then data flows back while the master keeps clocking.',
+      notes: ['**9Fh READ ID** returns the JEDEC ID: 20h (Micron), BAh (3 V), 18h (128 Mbit) [[doc]] [[sim]].',
+        '**03h READ** takes a 24-bit address and streams bytes until CS# goes high.',
+        'The master sends dummy zeros to clock the answer in.'],
+      src: [RP('lab2_spi/spi_flash_model.vhd')] },
+    { t: 'What is in the flash', v: vSpiDump,
+      plain: 'An FPGA board\'s flash holds its bitstream, and a bitstream has a recognisable start.',
+      notes: ['Padding, the bus-width words `000000BB 11220044`, more padding, then the sync word **AA995566** [[doc]].',
+        'An FPGA configuring from flash reads exactly these bytes and waits for the sync word.'],
+      src: [RP('lab2_spi/spi_flash_model.vhd')] },
+    { t: 'Chip select and HOLD#', v: vSpiRules,
+      plain: 'Two pins that are easy to get wrong: CS# frames a command, and HOLD# can freeze the chip.',
+      notes: ['A command lives inside **one CS# low period**. Raise CS# and the slave forgets it.',
+        'In single-SPI mode **DQ3 is HOLD#** and DQ2 is W#: drive both high.'],
+      src: [RP('lab2_spi/tb_lab2.vhd')] },
+    { t: 'How fast can SCLK go?', v: vSpiSpeed,
+      plain: 'Each bit makes a round trip in half a clock period: out to the slave, through its output stage, and back.',
+      notes: ['In mode 0 the slave changes MISO after a falling edge; the master samples at the next rising edge.',
+        'The **round trip** (wires + the slave\'s clock-to-output time) must fit in half a period.',
+        'Faster masters sample later than the edge, by the round-trip time.'],
+      src: [RP('lab2_spi/tb_lab2.vhd')] },
+    { t: 'What Lab 2 checked', v: vChecks(2),
+      plain: 'Seven checks: four modes, the ID in two modes, a memory read, CS#, HOLD# and the speed sweep.',
+      src: [RP('lab2_spi/README.md')] },
+    { t: 'The full run', v: vRun(2),
+      plain: 'Lab 2 as Questa printed it, waveforms of the four modes included.',
+      src: [RP('lab2_spi/tb_lab2.vhd')] },
+    { t: 'Check yourself', v: quiz([
+        ['In SPI mode 3, on which edges is data sampled?', ['rising', 'falling', 'both', 'on the chip select'], 0, 'Mode 3: CPOL 1, CPHA 1. SCLK idles high, the second edge of each pulse is the rising one.'],
+        ['The master raises CS# between 9Fh and reading the answer. What comes back?', ['20 BA 18', 'FF FF FF', '9F 9F 9F', '00 00 00'], 1, 'CS# high ends the command; MISO floats and the pull-up reads FFh.'],
+        ['Wires add 3 ns each way and the flash 7 ns. Up to which SCLK does mode 0 work without delayed sampling?', ['about 100 MHz', 'about 38 MHz', 'about 10 MHz', 'any speed'], 1, 'The round trip is 13 ns and must fit in half a period: 26 ns, about 38 MHz.']
+      ]) }
+  ] },
+  { t: 'I2C', k: 'two wires, many devices', screens: [
+    { t: 'Open drain and the wired AND', v: vWiredAnd,
+      plain: 'On an I2C bus nobody ever drives a wire high. Everyone may pull it low; a resistor pulls it back up.',
+      notes: ['Open-drain outputs **pull low or let go**; a pull-up makes a released line high.',
+        'A low always wins: the line is the **AND** of all devices, and two devices can never short each other.',
+        'That is what lets a slave answer, and stretch the clock, on the master\'s wires.'],
+      src: [RP('lab3_i2c/tb_lab3.vhd')] },
+    { t: 'Sizing the pull-ups', v: vPullup,
+      plain: 'The pull-up and the wire\'s capacitance set how fast a line rises. Too big a resistor and the edges are too slow; too small and nobody can pull the line low.',
+      notes: ['Rise time (30 % to 70 %) = **0.8473 R C**. Limits: 1000 ns at 100 kHz, 300 ns at 400 kHz [[doc]].',
+        'Smallest resistor: (3.3 V − 0.4 V) / 3 mA ≈ **1 kΩ** [[doc]].',
+        'A common choice on a short 400 kHz bus: **2.2 to 4.7 kΩ**.'],
+      src: [S('NXP UM10204', 'I2C-bus specification'), S('TI SLVA689', 'pull-up resistor sizing')] },
+    { t: 'START, address, ACK, STOP', v: vI2cFrame,
+      plain: 'A transfer opens and closes with a special move of SDA while SCL is high, and every byte gets a ninth clock pulse for the answer.',
+      notes: ['**START**: SDA falls while SCL is high. **STOP**: SDA rises while SCL is high. Otherwise SDA only changes while SCL is low.',
+        'After START: a **7-bit address** and the **R/W** bit. The slave that owns the address pulls SDA low in the ninth pulse: **ACK**.',
+        'Lab 3 draws this transfer from the simulated bus [[sim]].'],
+      src: [RP('lab3_i2c/i2c_master.vhd')] },
+    { t: 'Who is on the bus?', v: vScan,
+      plain: 'Knock on every door: START, an address, STOP, and note who answers.',
+      notes: ['A bus scan tries every address from 08h to 77h and records the ACKs, like `i2cdetect` on Linux.',
+        'Lab 3 finds its two devices, 48h and 50h [[sim]].'],
+      src: [RP('lab3_i2c/tb_lab3.vhd')] },
+    { t: 'Writing and reading an EEPROM', v: vEeprom,
+      plain: 'Inside a device, registers have addresses too: the first byte after the device address says where to start.',
+      notes: ['A write: address + W, the **word address**, the data.',
+        'A read: write the word address, then a **repeated START** and address + R; ACK every byte you want more of, NACK the last.',
+        'Without the repeated START a STOP would free the bus, and another master could take it.'],
+      src: [RP('lab3_i2c/i2c_slave.vhd')] },
+    { t: 'Clock stretching', v: vStretch,
+      plain: 'A slow slave may hold the clock low until it is ready. A good master simply waits.',
+      notes: ['After letting go of SCL the master must **wait until SCL really reads high** before it counts the high time.',
+        'A master that ignores stretching reads garbage from a slow slave.'],
+      src: [RP('lab3_i2c/i2c_master.vhd')] },
+    { t: 'What Lab 3 checked', v: vChecks(3),
+      plain: 'Nine checks, from the wired AND to clock stretching.',
+      notes: ['The same testbench also passes with the master at 400 kHz [[sim]].'],
+      src: [RP('lab3_i2c/README.md')] },
+    { t: 'The full run', v: vRun(3),
+      plain: 'Lab 3 as Questa printed it, the drawing of the bus included.',
+      src: [RP('lab3_i2c/tb_lab3.vhd')] },
+    { t: 'Check yourself', v: quiz([
+        ['Which of these happens while SCL is high?', ['a data bit changes', 'a START or a STOP', 'the slave changes SDA for its ACK', 'nothing ever'], 1, 'SDA only changes while SCL is low, except for START (falling) and STOP (rising).'],
+        ['The address byte for a read from the device at 50h is …', ['50h', 'A0h', 'A1h', '51h'], 2, '7-bit address 50h shifted left, R/W = 1: A1h. A write uses A0h.'],
+        ['R = 10 kΩ, C = 100 pF. Which speeds work?', ['100 kHz and 400 kHz', 'only 100 kHz', 'only 400 kHz', 'neither'], 1, 'Rise time 0.8473 × 10 kΩ × 100 pF ≈ 850 ns: under 1000 ns, over 300 ns.']
+      ]) }
+  ] },
+  { t: 'Choosing a bus', k: 'side by side, and what was verified', screens: [
+    { t: 'Which bus when', v: vChoose,
+      plain: 'UART to talk to a computer or a module, SPI when speed matters, I2C when many slow devices share a board.',
+      src: [RP('docs/choosing-a-bus.md')] },
+    { t: 'What was verified', v: vSummary,
+      plain: 'Three labs, each checked by its own testbench in Questa.',
+      notes: ['Every claim on these pages carries its source tag.'],
+      src: [RP('README.md')] }
+  ] }
+];
+
+/* ======================================================================
+   Navigation, state, rendering
+   ====================================================================== */
+const KEY = 'serial-course-v1';
+const total = CH.reduce((n, c) => n + c.screens.length, 0);
+let st = { c: 0, s: 0, seen: {} };
+try {
+    const o = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (o && typeof o === 'object') {
+        if (Number.isInteger(o.c) && CH[o.c]) st.c = o.c;
+        if (Number.isInteger(o.s) && CH[st.c].screens[o.s]) st.s = o.s;
+        if (o.seen && typeof o.seen === 'object') st.seen = o.seen;
+    }
+} catch (e) { /* storage unavailable: start fresh */ }
+const fromHash = () => {
+    const m = /^#c(\d+)(?:-s(\d+))?$/.exec(location.hash);
+    if (!m) return false;
+    const c = Number(m[1]), sc = Number(m[2] || 1) - 1;
+    if (CH[c] && CH[c].screens[sc]) { st.c = c; st.s = sc; return true; }
+    return false;
+};
+fromHash();
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* ignore */ } }
+const keyOf = (c, sc) => c + '.' + sc;
+
+function go(c, sc) {
+    if (!CH[c] || !CH[c].screens[sc]) return;
+    st.c = c; st.s = sc;
+    render(true);
+}
+function step(d) {
+    let c = st.c, sc = st.s + d;
+    if (sc < 0) { c--; if (c < 0) return; sc = CH[c].screens.length - 1; }
+    else if (sc >= CH[c].screens.length) { c++; if (c >= CH.length) return; sc = 0; }
+    go(c, sc);
+}
+
+const navEl = document.getElementById('c-nav');
+const panel = document.getElementById('c-panel');
+
+function renderNav() {
+    put(navEl, CH.map((c, i) => {
+        const seen = c.screens.filter((_, j) => st.seen[keyOf(i, j)]).length;
+        return h('li', null, h('button', { type: 'button', 'aria-current': i === st.c ? 'step' : null, onclick: () => go(i, 0) },
+            h('span', { class: 'no' }, i === 0 ? '··' : String(i).padStart(2, '0')),
+            h('span', null, c.t),
+            h('span', { class: 'cnt' + (seen === c.screens.length ? ' done' : '') }, seen === c.screens.length ? '✓' : seen + '/' + c.screens.length)));
+    }));
+    // on narrow screens the chapter list scrolls sideways: keep the current one in view
+    const rail = navEl.parentElement, curBtn = navEl.querySelector('[aria-current]');
+    if (curBtn && rail.scrollWidth > rail.clientWidth) {
+        const a = curBtn.getBoundingClientRect(), b = rail.getBoundingClientRect();
+        rail.scrollLeft += (a.left + a.width / 2) - (b.left + b.width / 2);
+    }
+    const n = Object.keys(st.seen).length;
+    document.getElementById('prog-label').textContent = `${n} of ${total} screens seen`;
+    document.getElementById('prog-bar').style.width = (100 * n / total) + '%';
+}
+
+function srcChip(o) {
+    const inner = [h('b', null, o.d), ' · ' + o.r];
+    return o.f ? h('a', { class: 'chip-src', href: REPO + o.f, target: '_blank', rel: 'noopener' }, inner) : h('span', { class: 'chip-src' }, inner);
+}
+
+function renderMain() {
+    const ch = CH[st.c], sc = ch.screens[st.s];
+    const vis = h('div', { class: 'c-visual' });
+    const prevT = (() => { let c = st.c, x = st.s - 1; if (x < 0) { c--; if (c < 0) return null; x = CH[c].screens.length - 1; } return CH[c].screens[x].t; })();
+    const nextT = (() => { let c = st.c, x = st.s + 1; if (x >= ch.screens.length) { c++; if (c >= CH.length) return null; x = 0; } return CH[c].screens[x].t; })();
+    put(panel,
+        h('span', { class: 'c-kicker' }, st.c === 0 ? 'Introduction' : `Chapter ${st.c} of ${CH.length - 1}`),
+        h('h2', { class: 'c-title' }, ch.t),
+        ch.screens.length > 1 ? h('div', { class: 'c-steps', role: 'tablist', 'aria-label': 'Screens' }, ch.screens.map((x, j) =>
+            h('button', { type: 'button', class: (j === st.s ? 'cur' : st.seen[keyOf(st.c, j)] ? 'seen' : ''), 'aria-label': `Screen ${j + 1}: ${x.t}`, onclick: () => go(st.c, j) }))) : null,
+        h('p', { class: 'c-sno' }, `Screen ${st.s + 1} of ${ch.screens.length}`),
+        h('h3', { class: 'c-stitle' }, sc.t),
+        vis,
+        sc.plain ? h('p', { class: 'c-plain' }, h('b', null, 'In plain words'), h('span', null, rich(sc.plain))) : null,
+        sc.notes ? h('ul', { class: 'c-notes' }, sc.notes.map(n => h('li', null, rich(n)))) : null,
+        sc.repo ? h('div', { class: 'c-repo' }, h('b', null, 'In the labs'), rich(sc.repo)) : null,
+        sc.terms ? h('details', { class: 'c-terms' }, h('summary', null, 'Terms on this screen'), h('dl', null, sc.terms.map(([a, b]) => [h('dt', null, a), h('dd', null, b)]))) : null,
+        sc.src ? h('div', { class: 'c-src' }, h('span', null, 'Sources'), sc.src.map(srcChip)) : null,
+        h('div', { class: 'c-pager' },
+            h('button', { type: 'button', class: 'cbtn', disabled: prevT === null, onclick: () => step(-1) }, h('span', null, '← previous'), prevT || ''),
+            h('button', { type: 'button', class: 'cbtn pri', disabled: nextT === null, onclick: () => step(1) }, h('span', null, 'next →'), nextT || 'the end')),
+        h('p', { class: 'keys' }, h('kbd', null, '←'), ' ', h('kbd', null, '→'), ' move between screens'));
+    try { sc.v(vis); } catch (e) { vis.append(msg('This figure failed to draw: ' + e.message, 'bad')); }
+}
+
+function render(scroll) {
+    runClean();
+    st.seen[keyOf(st.c, st.s)] = 1;
+    renderMain();
+    renderNav();
+    save();
+    const hash = `#c${st.c}-s${st.s + 1}`;
+    if (location.hash !== hash) history.replaceState(null, '', hash);
+    if (scroll) {
+        const top = panel.getBoundingClientRect().top + window.scrollY - 90;
+        if (window.scrollY > top) window.scrollTo({ top, behavior: REDUCED ? 'auto' : 'smooth' });
+    }
+}
+
+document.addEventListener('keydown', e => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+});
+window.addEventListener('hashchange', () => { if (fromHash()) render(true); });
+
+render(false);
+})();
+</script>
+</body>
+</html>
