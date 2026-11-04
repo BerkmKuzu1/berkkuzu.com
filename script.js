@@ -357,28 +357,72 @@
     /* ----------------------------------------------------------------------
        Project comments — giscus, on this repository's GitHub Discussions
        ---------------------------------------------------------------------- */
-    /* One giscus frame serves every project: a chip swaps the thread with a
-       setConfig message instead of reloading the frame. Nothing is fetched
-       from giscus.app until the section is about to scroll into view, or a
-       link points straight at a thread (projects.html?thread=vhdl-2024). Without
-       a category id there is nothing to load, so the plain link stays. */
-    var threadRoot = document.getElementById("comment-thread");
-    var topicsRoot = document.getElementById("comment-topics");
+    /* Every project card whose <li> carries data-thread gets a Comments
+       button. It opens one shared panel under the card's row and loads that
+       project's thread into it; nothing is fetched from giscus.app before
+       that, unless a link opens a thread directly (projects.html?thread=
+       vhdl-2024). The thread is the discussion titled projects/<data-thread>
+       on GitHub, so never rename a key that has comments. */
+    var commentCards = Array.prototype.slice.call(
+        document.querySelectorAll(".project-grid > li[data-thread]"));
 
-    if (threadRoot && topicsRoot && threadRoot.getAttribute("data-category-id")) {
+    if (commentCards.length) {
         var giscusOrigin = "https://giscus.app";
-        var chips = Array.prototype.slice.call(topicsRoot.querySelectorAll(".chip"));
-        var threads = chips.map(function (chip) {
-            return chip.getAttribute("data-thread");
-        });
+        /* From https://giscus.app; copied onto client.js's script tag. */
+        var giscusConfig = {
+            repo: "BerkmKuzu1/berkkuzu.com",
+            repoId: "R_kgDORfZeew",
+            category: "Announcements",
+            categoryId: "DIC_kwDORfZee84DKP2W",
+            mapping: "specific",
+            strict: "1",
+            reactionsEnabled: "1",
+            emitMetadata: "0",
+            inputPosition: "top",
+            lang: "en"
+        };
         var canonical = document.querySelector('link[rel="canonical"]');
         var pageUrl = canonical ? canonical.href : location.href.split(/[?#]/)[0];
+
+        var panel = document.createElement("li");
+        panel.className = "comment-panel";
+        panel.id = "comment-panel";
+        panel.hidden = true;
+        panel.innerHTML =
+            '<div class="comment-panel-head">' +
+                "<h3></h3>" +
+                '<button type="button" class="icon-btn" aria-label="Close comments">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+                    'stroke-width="1.8" stroke-linecap="round" aria-hidden="true">' +
+                    '<path d="M6 6l12 12M18 6L6 18"/></svg>' +
+                "</button>" +
+            "</div>" +
+            '<div class="giscus comment-thread" id="comment-thread"></div>';
+
+        var panelTitle = panel.querySelector("h3");
+        var closeButton = panel.querySelector("button");
+        var threadRoot = panel.querySelector(".giscus");
+
+        var toggles = commentCards.map(function (li) {
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "comments-toggle";
+            button.setAttribute("aria-expanded", "false");
+            button.setAttribute("aria-controls", "comment-panel");
+            button.innerHTML =
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+                'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ' +
+                'aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7' +
+                'l-4 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>Comments';
+            li.appendChild(button);
+            return button;
+        });
 
         /* What the frame should show. The term is the discussion's title on
            GitHub; description and backLink only go into its first post,
            written with the first comment. */
         var wanted = {};
-        var loaded = false;
+        var openCard = null;
         var stale = false;
 
         function giscusTheme() {
@@ -394,38 +438,33 @@
             }
         }
 
-        function pick(thread) {
-            wanted.term = "projects/" + thread;
-            wanted.description = "Comments on " +
-                chips[threads.indexOf(thread)].textContent + ".";
-            wanted.backLink = pageUrl + "?thread=" + thread;
-
-            chips.forEach(function (chip) {
-                chip.setAttribute("aria-pressed",
-                    chip.getAttribute("data-thread") === thread ? "true" : "false");
-            });
-
-            try {
-                sessionStorage.setItem("comment-thread", thread);
-            } catch (e) {
-                /* Private mode: back from GitHub sign-in, the first thread opens. */
-            }
+        function projectName(li) {
+            var heading = li.querySelector("h3");
+            return heading ? heading.textContent.trim() : li.getAttribute("data-thread");
         }
 
-        function load() {
-            if (loaded) { return; }
-            loaded = true;
-
+        /* A fresh frame for each project: moving a live frame to another card
+           would reload it anyway, and on the old thread first. */
+        function mount(li) {
+            var thread = li.getAttribute("data-thread");
             var script = document.createElement("script");
 
-            Object.keys(threadRoot.dataset).forEach(function (key) {
-                script.dataset[key] = threadRoot.dataset[key];
+            wanted.term = "projects/" + thread;
+            wanted.description = "Comments on " + projectName(li) + ".";
+            wanted.backLink = pageUrl + "?thread=" + thread;
+            wanted.theme = giscusTheme();
+
+            threadRoot.textContent = "";
+
+            Object.keys(giscusConfig).forEach(function (key) {
+                script.dataset[key] = giscusConfig[key];
             });
             script.dataset.term = wanted.term;
             script.dataset.theme = wanted.theme;
             script.src = giscusOrigin + "/client.js";
             script.crossOrigin = "anonymous";
-            script.async = true;
+            /* Run in order, so a quick second click cannot lose to the first. */
+            script.async = false;
 
             /* client.js builds the frame from the page's own description and
                URL, and rebuilds it with its first settings after a sign-out.
@@ -434,6 +473,8 @@
             stale = true;
             script.addEventListener("load", function () {
                 var frame = threadRoot.querySelector("iframe.giscus-frame");
+
+                script.remove();
                 if (!frame) { return; }
 
                 frame.addEventListener("load", function () {
@@ -445,26 +486,54 @@
             document.body.appendChild(script);
         }
 
+        function show(li) {
+            if (li !== openCard) {
+                mount(li);
+                openCard = li;
+            }
+
+            panelTitle.textContent = "Comments on " + projectName(li);
+            /* Putting the panel back where it already is would reload its frame. */
+            if (li.nextElementSibling !== panel) { li.after(panel); }
+            panel.hidden = false;
+
+            toggles.forEach(function (button, i) {
+                button.setAttribute("aria-expanded", commentCards[i] === li ? "true" : "false");
+            });
+        }
+
+        function hide() {
+            panel.hidden = true;
+            toggles.forEach(function (button) {
+                button.setAttribute("aria-expanded", "false");
+            });
+            history.replaceState(null, "", location.pathname);
+        }
+
+        commentCards.forEach(function (li, i) {
+            toggles[i].addEventListener("click", function () {
+                if (!panel.hidden && li === openCard) {
+                    hide();
+                    return;
+                }
+
+                /* The address now opens this thread, so it can be shared, and
+                   giscus brings people back to it after they sign in. */
+                history.replaceState(null, "", "?thread=" + li.getAttribute("data-thread"));
+                show(li);
+                panel.scrollIntoView({ block: "nearest" });
+            });
+        });
+
+        closeButton.addEventListener("click", function () {
+            hide();
+            toggles[commentCards.indexOf(openCard)].focus();
+        });
+
         window.addEventListener("message", function (event) {
             if (event.origin === giscusOrigin && stale) {
                 stale = false;
                 sync();
-            }
-        });
-
-        topicsRoot.addEventListener("click", function (event) {
-            var chip = event.target.closest(".chip");
-            if (!chip) { return; }
-
-            var thread = chip.getAttribute("data-thread");
-            pick(thread);
-            /* The address now opens this thread, so it can be shared. */
-            history.replaceState(null, "", "?thread=" + thread + "#comments");
-
-            if (loaded) {
-                sync();
-            } else {
-                load();
             }
         });
 
@@ -487,44 +556,22 @@
             lightQuery.addListener(syncTheme);
         }
 
-        /* After GitHub sign-in giscus comes back to #comment-thread with a
-           ?giscus= session; reopen the thread the visitor was reading. */
         var query = new URLSearchParams(location.search);
-        var linked = threads.indexOf(query.get("thread")) !== -1;
-        var returning = query.has("giscus");
-        var stored = null;
+        var linked = commentCards.filter(function (li) {
+            return li.getAttribute("data-thread") === query.get("thread");
+        })[0];
 
-        try {
-            stored = sessionStorage.getItem("comment-thread");
-        } catch (e) {
-            /* Nothing stored is fine: the first thread opens. */
-        }
+        /* Back from GitHub sign-in (?giscus=), client.js has to run or the
+           session is lost; giscus returns to the thread it was opened on. */
+        if (!linked && query.has("giscus")) { linked = commentCards[0]; }
 
-        wanted.theme = giscusTheme();
-        pick(linked ? query.get("thread")
-            : returning && threads.indexOf(stored) !== -1 ? stored
-            : threads[0]);
-        topicsRoot.hidden = false;
-
-        if (linked || returning) {
-            load();
+        if (linked) {
+            show(linked);
 
             /* Jump like a #fragment does on load, rather than glide there. */
-            if (linked) {
-                root.style.scrollBehavior = "auto";
-                topicsRoot.closest("section").scrollIntoView();
-                root.style.scrollBehavior = "";
-            }
-        } else if ("IntersectionObserver" in window) {
-            var commentsObserver = new IntersectionObserver(function (entries) {
-                if (entries[0].isIntersecting) {
-                    commentsObserver.disconnect();
-                    load();
-                }
-            }, { rootMargin: "300px 0px" });
-            commentsObserver.observe(threadRoot);
-        } else {
-            load();
+            root.style.scrollBehavior = "auto";
+            linked.scrollIntoView();
+            root.style.scrollBehavior = "";
         }
     }
 }());

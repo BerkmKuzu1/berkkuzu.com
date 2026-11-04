@@ -21,7 +21,7 @@
 <link rel="icon" href="assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="assets/favicon.png">
 
-<link rel="stylesheet" href="style.css?v=20261103">
+<link rel="stylesheet" href="style.css?v=20261104">
 <script>try{var t=localStorage.getItem("theme");if(t){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
 </head>
 <body>
@@ -65,7 +65,7 @@
             <p class="section-intro">
                 RISC-V SoCs, ASIC physical design and FPGA / embedded projects.
                 Public source, implementation details and verification results.
-                Every project has its own <a href="#comments">comment thread</a>.
+                Every project has its own comment thread, under its card.
             </p>
         </div>
     </section>
@@ -74,7 +74,7 @@
         <div class="container">
             <ul class="card-grid project-grid">
 
-                <li class="project-wide">
+                <li class="project-wide" data-thread="blogic-mcu">
                     <a class="card project-featured" href="https://github.com/BerkmKuzu1/BLogic-MCU" target="_blank" rel="noopener">
                         <div class="project-copy">
                             <div class="card-head">
@@ -103,7 +103,7 @@
                     </a>
                 </li>
 
-                <li class="project-wide">
+                <li class="project-wide" data-thread="serdes-practice">
                     <a class="card project-featured" href="serdes.html">
                         <div class="project-copy">
                             <div class="card-head">
@@ -133,7 +133,7 @@
                     </a>
                 </li>
 
-                <li class="project-wide">
+                <li class="project-wide" data-thread="anadologic-internship-acceptance-task-2024">
                     <a class="card project-featured" href="https://github.com/BerkmKuzu1/2024-ANADOLOGIC-FIRST-INTERNSHIP-ACCEPTANCE-TASK" target="_blank" rel="noopener">
                         <div class="project-copy">
                             <div class="card-head">
@@ -164,7 +164,7 @@
                     </a>
                 </li>
 
-                <li>
+                <li data-thread="8bit-counter-asic">
                     <a class="card" href="https://github.com/BerkmKuzu1/8bitcounter-asic" target="_blank" rel="noopener">
                         <div class="card-head">
                             <h3>8-bit Counter ASIC</h3>
@@ -180,7 +180,7 @@
                     </a>
                 </li>
 
-                <li>
+                <li data-thread="verilog-2024">
                     <a class="card" href="https://github.com/BerkmKuzu1/Verilog" target="_blank" rel="noopener">
                         <div class="card-head">
                             <h3>Verilog</h3>
@@ -197,7 +197,7 @@
                     </a>
                 </li>
 
-                <li>
+                <li data-thread="vhdl-2024">
                     <a class="card" href="https://github.com/BerkmKuzu1/VHDL" target="_blank" rel="noopener">
                         <div class="card-head">
                             <h3>VHDL</h3>
@@ -215,7 +215,7 @@
                     </a>
                 </li>
 
-                <li>
+                <li data-thread="nfc-system">
                     <a class="card" href="https://github.com/BerkmKuzu1/Nfc-System-Project" target="_blank" rel="noopener">
                         <div class="card-head">
                             <h3>NFC System Project</h3>
@@ -250,53 +250,6 @@
                 </li>
 
             </ul>
-        </div>
-    </section>
-
-    <section class="section" id="comments">
-        <div class="container">
-            <div class="section-head">
-                <div>
-                    <h2>Comments</h2>
-                    <p class="section-intro">
-                        A question, a correction or an idea? Pick a project and leave a
-                        comment. You sign in with GitHub, and each project's thread is a
-                        public discussion in this site's repository.
-                    </p>
-                </div>
-            </div>
-
-            <!-- One thread per project. data-thread is the key: the discussion on
-                 GitHub is titled projects/<data-thread>, so never rename one.
-                 Link straight to a thread with projects.html?thread=<data-thread>. -->
-            <ul class="chips comment-topics" id="comment-topics" aria-label="Project" hidden>
-                <li><button type="button" class="chip" aria-pressed="false" data-thread="blogic-mcu">BLogic MCU</button></li>
-                <li><button type="button" class="chip" aria-pressed="false" data-thread="serdes-practice">Serdes Practice</button></li>
-                <li><button type="button" class="chip" aria-pressed="false" data-thread="anadologic-internship-acceptance-task-2024">AnadoLogic Internship Task</button></li>
-                <li><button type="button" class="chip" aria-pressed="false" data-thread="8bit-counter-asic">8-bit Counter ASIC</button></li>
-                <li><button type="button" class="chip" aria-pressed="false" data-thread="verilog-2024">Verilog - 2024</button></li>
-                <li><button type="button" class="chip" aria-pressed="false" data-thread="vhdl-2024">VHDL - 2024</button></li>
-                <li><button type="button" class="chip" aria-pressed="false" data-thread="nfc-system">NFC System</button></li>
-            </ul>
-
-            <!-- giscus settings, copied onto its script tag by script.js. The ids
-                 come from https://giscus.app once the giscus app is installed. -->
-            <div class="giscus comment-thread" id="comment-thread"
-                 data-repo="BerkmKuzu1/berkkuzu.com"
-                 data-repo-id="R_kgDORfZeew"
-                 data-category="Announcements"
-                 data-category-id="DIC_kwDORfZee84DKP2W"
-                 data-mapping="specific"
-                 data-strict="1"
-                 data-reactions-enabled="1"
-                 data-emit-metadata="0"
-                 data-input-position="top"
-                 data-lang="en">
-                <p class="muted">
-                    Comments live in this site's
-                    <a href="https://github.com/BerkmKuzu1/berkkuzu.com/discussions" target="_blank" rel="noopener">GitHub Discussions</a>.
-                </p>
-            </div>
         </div>
     </section>
 

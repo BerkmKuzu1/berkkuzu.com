@@ -903,11 +903,57 @@ a.card:hover h3 { color: var(--accent); }
 }
 
 /* --------------------------------------------------------------------------
-   Comments — the giscus frame sizes itself; this only sets the column
+   Comments — a button under every project card, and one panel that opens
+   under the row of its card. script.js builds both; giscus sizes its frame.
    -------------------------------------------------------------------------- */
-.comment-topics { margin-bottom: 1.5rem; }
-/* .chips sets display: flex, which would beat the hidden attribute. */
-.comment-topics[hidden] { display: none; }
+/* dense lets the next card fill the gap beside a card whose panel opened,
+   so the panel always lands under the whole row. */
+.project-grid { grid-auto-flow: row dense; }
+.project-grid > li { flex-direction: column; }
+.project-grid > li > .card { flex: 1 1 auto; height: auto; }
+
+.comments-toggle {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    padding: 0.2rem 0.1rem;
+    border: 0;
+    background: none;
+    color: var(--text-mute);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: color var(--speed);
+}
+
+.comments-toggle:hover,
+.comments-toggle[aria-expanded="true"] { color: var(--accent); }
+.comments-toggle svg { width: 15px; height: 15px; }
+
+.card-grid > .comment-panel {
+    grid-column: 1 / -1;
+    display: block;
+    padding: 1rem 1.35rem 1.35rem;
+    background: var(--surface);
+    border: 1px solid var(--accent-line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+/* .card-grid > li sets display: flex, which would beat the hidden attribute. */
+.card-grid > .comment-panel[hidden] { display: none; }
+
+.comment-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.comment-panel-head h3 { font-size: 1.02rem; }
 .comment-thread { max-width: 48rem; }
 
 /* --------------------------------------------------------------------------

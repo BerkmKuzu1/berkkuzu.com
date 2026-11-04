@@ -138,17 +138,20 @@ reusing cached styles with newly published HTML.
 
 ## Comments
 
-The Comments section at the bottom of `projects.html` is
-[giscus](https://giscus.app): every project has a thread in this repository's
-GitHub Discussions (category Announcements), and visitors sign in with GitHub
-to write. `script.js` loads giscus only when the section is about to scroll
-into view, so no other server is contacted before that.
+Every project card on the home and projects pages has a Comments button
+under it. It opens that project's [giscus](https://giscus.app) thread in a
+panel below the card's row: a discussion in this repository's GitHub
+Discussions (category Announcements), where visitors write after signing in
+with GitHub. `script.js` adds the buttons and the panel, and contacts
+giscus.app only when someone opens a thread.
 
-- A thread is keyed by its chip's `data-thread`; the discussion is titled
-  `projects/<data-thread>`. A new project needs a new chip. Never rename an
-  existing `data-thread`, or its comments are left behind.
+- A card gets a thread from the `data-thread` key on its `<li>`; the
+  discussion is titled `projects/<data-thread>`. A new project needs the key
+  on both pages. Never rename a key that has comments, or they are left
+  behind. A card without a key, like berkkuzu.com, gets no button.
 - `projects.html?thread=<data-thread>` opens that project's thread directly.
-- `giscus.json` lists the sites allowed to embed the threads: berkkuzu.com,
+- The giscus ids are at the top of the comments code in `script.js`.
+  `giscus.json` lists the sites allowed to embed the threads: berkkuzu.com,
   and localhost for previews.
 - Moderation happens on GitHub, in the Discussions tab: edit, hide, lock or
   delete comments there.
