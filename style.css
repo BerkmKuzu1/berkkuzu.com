@@ -912,25 +912,40 @@ a.card:hover h3 { color: var(--accent); }
 .project-grid > li { flex-direction: column; }
 .project-grid > li > .card { flex: 1 1 auto; height: auto; }
 
+/* A full-width bar, so it reads as the card's comment section rather than
+   a caption. */
 .comments-toggle {
-    align-self: flex-start;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.55rem;
+    width: 100%;
     margin-top: 0.5rem;
-    padding: 0.2rem 0.1rem;
-    border: 0;
-    background: none;
-    color: var(--text-mute);
+    padding: 0.7rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-dim);
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.82rem;
     cursor: pointer;
-    transition: color var(--speed);
+    transition: color var(--speed), border-color var(--speed),
+                background-color var(--speed);
 }
 
 .comments-toggle:hover,
-.comments-toggle[aria-expanded="true"] { color: var(--accent); }
-.comments-toggle svg { width: 15px; height: 15px; }
+.comments-toggle[aria-expanded="true"] {
+    color: var(--accent);
+    border-color: var(--accent-line);
+    background: var(--bg-soft);
+}
+
+.comments-toggle svg { flex: none; width: 17px; height: 17px; color: var(--accent); }
+.comments-toggle .comments-chevron {
+    margin-left: auto;
+    color: inherit;
+    transition: transform var(--speed);
+}
+.comments-toggle[aria-expanded="true"] .comments-chevron { transform: rotate(180deg); }
 
 .card-grid > .comment-panel {
     grid-column: 1 / -1;

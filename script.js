@@ -413,7 +413,10 @@
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
                 'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ' +
                 'aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7' +
-                'l-4 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>Comments';
+                'l-4 3.5V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>Comments' +
+                '<svg class="comments-chevron" viewBox="0 0 24 24" fill="none" ' +
+                'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" ' +
+                'stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
             li.appendChild(button);
             return button;
         });
