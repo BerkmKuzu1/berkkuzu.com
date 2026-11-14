@@ -83,16 +83,21 @@ end architecture;
 `
 };
 
+// the chapters of the book, in order; the reading pages are in book.js
 const SECTIONS = [
     { id: 'start', title: 'Getting started' },
-    { id: 'gates', title: 'Gates and equations' },
+    { id: 'gates', title: 'Logic and signals' },
     { id: 'vectors', title: 'Vectors' },
     { id: 'hier', title: 'Entities and instances' },
     { id: 'comb', title: 'Combinational processes' },
     { id: 'clocked', title: 'Clocked logic' },
     { id: 'fsm', title: 'State machines' },
-    { id: 'more', title: 'More VHDL features' },
-    { id: 'numeric', title: 'Numbers, types and functions' }
+    { id: 'more', title: 'Selection, loops and generate' },
+    { id: 'numeric', title: 'Numbers and arithmetic' },
+    { id: 'types', title: 'Types, functions and packages' },
+    { id: 'mem', title: 'Memories' },
+    { id: 'rtl', title: 'Register-transfer design' },
+    { id: 'next', title: 'Going further' }
 ];
 
 const P = [];
@@ -1444,7 +1449,7 @@ Build a 4-to-16 decoder: exactly one bit of {y} is {'1'}, the one whose index is
     test: comb(i => ({ y: 1n << i.sel }))
 });
 add({
-    id: 'functions', sec: 'numeric', title: 'Functions: Gray code',
+    id: 'functions', sec: 'types', title: 'Functions: Gray code',
     body: `In the **Gray code**, consecutive numbers differ in exactly one bit, which makes it safe for counters that cross between clock domains. Binary to Gray takes one line: {g = b xor (b shifted right by one)}. Gray to binary is a running XOR from the top bit down: {b(7) = g(7)}, then {b(i) = b(i+1) xor g(i)}.
 
 Write two **functions** in the declarative part of the architecture, between {is} and {begin}, and use them:
@@ -1479,7 +1484,7 @@ end function;`,
     test: comb(i => { let b = 0n, run = 0n; for (let k = 7; k >= 0; k--) { run ^= bit(i.x, k); b |= run << BigInt(k); } return { gray: i.x ^ (i.x >> 1n), bin: b }; })
 });
 add({
-    id: 'attributes', sec: 'numeric', title: 'Attributes: counting leading zeros',
+    id: 'attributes', sec: 'types', title: 'Attributes: counting leading zeros',
     body: `**Attributes** ask a type or a signal about itself: {x'length} is its width, {x'high} and {x'low} its index bounds, {x'range} the whole range. They let code follow the width of a vector instead of repeating numbers.
 
 Count the leading zeros of the 16-bit input: how many {'0'} bits come before the first {'1'}, starting at the most significant bit. For {x"0000"} the answer is 16, so the output {lz} has 5 bits.
@@ -1576,6 +1581,773 @@ begin
 end process;`,
     test: comb(i => ({ d: i.a > i.b ? i.a - i.b : i.b - i.a, a_gt_b: B(i.a > i.b) }),
         { gen: R => { const a = R.bits(8); return { a, b: R.chance(0.1) ? a : R.bits(8) }; }, random: 300 })
+});
+
+/* ======================================================= clocked, part 2 */
+let btnLevel = 0n;
+add({
+    id: 'sync_button', sec: 'clocked', title: 'Synchronizing a button',
+    body: `A push button is not synchronous to anything: it can change at any moment, also just before a clock edge, when a flip-flop needs a stable input. A flip-flop that samples a changing input can become **metastable**: its output hovers between {'0'} and {'1'} for a while before it settles. The standard cure is a **synchronizer**, two flip-flops in a row. The first one may go metastable, but it has a whole clock period to settle before the second one samples it.
+
+Synchronize the button {btn} with two registers, and output a one-cycle pulse {pressed} each time the synchronized signal goes from {'0'} to {'1'}. That needs a third register, which remembers the previous synchronized value:
+
+~~~
+btn -> s1 -> s2 -> s3          pressed = s2 and not s3
+~~~
+
+All three registers shift at every rising edge of {clk}. Read nothing from {s1}: only the second stage is safe to use.`,
+    ports: [['clk', 'in', 1], ['btn', 'in', 1], ['pressed', 'out', 1]],
+    solDecls: 'signal s1, s2, s3 : std_logic;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    s1 <= btn;
+    s2 <= s1;
+    s3 <= s2;
+  end if;
+end process;
+
+pressed <= s2 and not s3;`,
+    test: {
+        clk: 'clk', cycles: 120,
+        init: () => [null, null, null],
+        gen: (R, k) => { if (k === 0) btnLevel = 0n; if (R.chance(0.2)) btnLevel = 1n - btnLevel; return { btn: btnLevel }; },
+        out: s => ({ pressed: s[1] === null ? null : s[1] === 0n ? 0n : s[2] === null ? null : s[1] & (1n - s[2]) }),
+        next: (s, i) => [i.btn, s[0], s[1]]
+    }
+});
+let pwmDuty = 0n;
+add({
+    id: 'pwm', sec: 'clocked', title: 'PWM: dimming an LED',
+    body: `An LED cannot be half on, but it can be on half of the time. **Pulse-width modulation** switches it on and off faster than the eye can follow, and the fraction of the time it is on, the **duty cycle**, sets its brightness. Motor drivers and class-D amplifiers use the same trick.
+
+Build a PWM generator with 16 steps. A 4-bit counter runs 0, 1, ..., 15, 0, ... at every rising edge of {clk}, and {reset} (synchronous) sets it to 0. The output {pwm_out} is {'1'} while the count is less than {duty}: {duty = "0000"} keeps the LED dark, {"1000"} lights it half of the time, and {"1111"} for 15 of the 16 steps.
+
+Compare the count with {duty} outside the clocked process, so that a new duty cycle takes effect at once.`,
+    numeric: true,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['duty', 'in', 4], ['pwm_out', 'out', 1]],
+    solDecls: 'signal count : unsigned(3 downto 0);',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      count <= (others => '0');
+    else
+      count <= count + 1;
+    end if;
+  end if;
+end process;
+
+pwm_out <= '1' when count < unsigned(duty) else '0';`,
+    test: {
+        clk: 'clk', cycles: 160,
+        init: () => null,
+        gen: (R, k) => { if (k === 0 || R.chance(0.04)) pwmDuty = R.bits(4); return { reset: k === 0 ? 1n : B(R.chance(0.02)), duty: pwmDuty }; },
+        out: (s, i) => ({ pwm_out: s === null ? null : B(s < i.duty) }),
+        next: (s, i) => (i.reset ? 0n : s === null ? null : (s + 1n) & 15n)
+    }
+});
+let bounceLevel = 0n, bounceLeft = 0;
+add({
+    id: 'debounce', sec: 'clocked', title: 'Debouncing a switch',
+    body: `A mechanical switch does not change cleanly: its contacts bounce, and for a few milliseconds the signal flips back and forth. A design that counts presses sees one press as several. A **debouncer** accepts a new level only after the input has kept it for a while.
+
+Build one that accepts a change after four clock cycles. Keep the accepted level in a register that drives {clean}, and count how long {noisy} has differed from it. At each rising edge of {clk}:
+
+- {reset} (synchronous) sets the level to {'0'} and the counter to 0;
+- otherwise, if {noisy} equals the level, the counter returns to 0: nothing changed, or the change did not last;
+- otherwise, if the counter is already 3, this is the fourth edge in a row with a different input: the level takes the value of {noisy}, and the counter returns to 0;
+- otherwise the counter counts up.
+
+A real debouncer waits a few milliseconds, which at 100 MHz is hundreds of thousands of clock cycles: the same design with a wider counter, usually sized by a generic. A switch is also asynchronous, so its signal should pass a synchronizer first.`,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['noisy', 'in', 1], ['clean', 'out', 1]],
+    solDecls: 'signal count : integer range 0 to 3;\nsignal level : std_logic;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      level <= '0';
+      count <= 0;
+    elsif noisy = level then
+      count <= 0;
+    elsif count = 3 then
+      level <= noisy;
+      count <= 0;
+    else
+      count <= count + 1;
+    end if;
+  end if;
+end process;
+
+clean <= level;`,
+    test: {
+        clk: 'clk', cycles: 200,
+        init: () => null,
+        gen: (R, k) => {
+            if (k === 0) { bounceLevel = 0n; bounceLeft = 0; }
+            if (R.chance(0.05)) { bounceLevel = 1n - bounceLevel; bounceLeft = 1 + R.int(6); }
+            const noisy = bounceLeft > 0 && R.chance(0.5) ? 1n - bounceLevel : bounceLevel;
+            if (bounceLeft > 0) bounceLeft--;
+            return { reset: k === 0 ? 1n : B(R.chance(0.01)), noisy };
+        },
+        out: s => ({ clean: s === null ? null : s.level }),
+        next: (s, i) => {
+            if (i.reset) return { level: 0n, count: 0 };
+            if (s === null) return null;
+            if (i.noisy === s.level) return { level: s.level, count: 0 };
+            return s.count === 3 ? { level: i.noisy, count: 0 } : { level: s.level, count: s.count + 1 };
+        }
+    }
+});
+
+/* =========================================================== fsm, part 2 */
+add({
+    id: 'vending', sec: 'fsm', title: 'A vending machine',
+    body: `A classic of the textbooks: a machine sells a drink for 15 cents and takes nickels (5 cents) and dimes (10 cents). In each clock cycle at most one coin arrives: {nickel} or {dime} is {'1'} for that cycle, never both.
+
+Write it as a Moore machine whose state is the money inserted so far: 0, 5, 10, 15 or 20 cents.
+
+- From 0, 5 and 10 cents, a coin adds its value, and a cycle without a coin keeps the state.
+- 15 and 20 cents last one cycle each. {dispense} is {'1'} in both, and {change} is {'1'} at 20 cents, which returns a nickel. In the next cycle the machine starts over as from 0 cents: a coin that arrives right then already counts for the next drink.
+- {reset} (synchronous) returns to 0 cents.
+
+Draw the state diagram before you write the code: five states, and arrows for a nickel, a dime and no coin.`,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['nickel', 'in', 1], ['dime', 'in', 1], ['dispense', 'out', 1], ['change', 'out', 1]],
+    solDecls: 'type state_t is (c0, c5, c10, c15, c20);\nsignal state : state_t;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      state <= c0;
+    else
+      case state is
+        when c0 | c15 | c20 =>
+          if nickel = '1' then
+            state <= c5;
+          elsif dime = '1' then
+            state <= c10;
+          else
+            state <= c0;
+          end if;
+        when c5 =>
+          if nickel = '1' then
+            state <= c10;
+          elsif dime = '1' then
+            state <= c15;
+          end if;
+        when c10 =>
+          if nickel = '1' then
+            state <= c15;
+          elsif dime = '1' then
+            state <= c20;
+          end if;
+      end case;
+    end if;
+  end if;
+end process;
+
+dispense <= '1' when state = c15 or state = c20 else '0';
+change   <= '1' when state = c20 else '0';`,
+    test: {
+        clk: 'clk', cycles: 200,
+        init: () => null,
+        gen: (R, k) => { const c = R.int(10); return { reset: k === 0 ? 1n : B(R.chance(0.01)), nickel: B(c === 6 || c === 7), dime: B(c >= 8) }; },
+        out: s => ({ dispense: s === null ? null : B(s >= 15), change: s === null ? null : B(s === 20) }),
+        next: (s, i) => (i.reset ? 0 : s === null ? null : (s >= 15 ? 0 : s) + (i.nickel ? 5 : i.dime ? 10 : 0))
+    }
+});
+let mooreQueue = [];
+add({
+    id: 'moore_detect', sec: 'fsm', title: 'A Moore sequence detector',
+    body: `Detect the pattern {110} in the serial input {din}, one bit per clock cycle, this time as a **Moore** machine: {found} depends on the state alone. So the machine needs a state that means "110 has just arrived", and {found} is {'1'} while the machine is in it.
+
+~~~
+type state_t is (s0, s1, s11, s110);
+~~~
+
+{s1} means the last bit was a {1}, {s11} the last two, and {s110} the whole pattern. Work out the arrows: from {s11}, a {0} completes the pattern; from {s110}, a {1} can begin the next one. {reset} (synchronous) returns to {s0}.
+
+Compare the timing with the Mealy detector of the earlier problem: there, {found} rose in the same cycle as the last bit. Here it rises one cycle later, after the clock edge that enters {s110}. In return it comes straight from the state register: it cannot glitch, and no combinational path leads from {din} to {found}.`,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['din', 'in', 1], ['found', 'out', 1]],
+    solDecls: 'type state_t is (s0, s1, s11, s110);\nsignal state : state_t;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      state <= s0;
+    else
+      case state is
+        when s0   => if din = '1' then state <= s1;  else state <= s0;   end if;
+        when s1   => if din = '1' then state <= s11; else state <= s0;   end if;
+        when s11  => if din = '1' then state <= s11; else state <= s110; end if;
+        when s110 => if din = '1' then state <= s1;  else state <= s0;   end if;
+      end case;
+    end if;
+  end if;
+end process;
+
+found <= '1' when state = s110 else '0';`,
+    test: {
+        clk: 'clk', cycles: 200,
+        init: () => null,
+        gen: (R, k) => {
+            if (k === 0) mooreQueue = [];
+            if (!mooreQueue.length) mooreQueue = R.chance(0.3) ? [...(R.chance(0.5) ? '110' : '11011')].map(BigInt) : [R.bit()];
+            return { reset: k === 0 ? 1n : B(R.chance(0.02)), din: mooreQueue.shift() };
+        },
+        out: s => ({ found: s === null ? null : B(s === '110') }),
+        next: (s, i) => (i.reset ? '' : s === null ? null : (s + i.din).slice(-3))
+    }
+});
+
+/* ======================================================= numeric, part 2 */
+add({
+    id: 'fixed_gain', sec: 'numeric', title: 'Fixed point: a volume control',
+    body: `Hardware has no fractions, but it can pretend. In **fixed point**, an integer stands for itself divided by a power of two. The 8-bit {gain} here is read as gain/256, so it runs from 0 to 255/256: {x"80"} is one half, {x"40"} one quarter. (Such a format is written **Q0.8**: no integer bits, eight fraction bits.)
+
+Scale the signed 8-bit audio {sample} by {gain}: {scaled} = sample × gain / 256, rounded down, as a signed 8-bit number. The product never leaves the 8-bit range, since the gain is below 1.
+
+- Multiply in {signed}, and give {gain} a leading {'0'} first, so that it stays positive: {signed('0' & gain)} is 9 bits wide.
+- The product of {*} is as wide as both operands together, here 17 bits.
+- Dividing by 256 is taking the bits from 8 upward: for {signed} that rounds toward minus infinity, as an arithmetic shift does.`,
+    numeric: true,
+    ports: [['sample', 'in', 8], ['gain', 'in', 8], ['scaled', 'out', 8]],
+    sol: `process(all)
+  variable p : signed(16 downto 0);
+begin
+  p := signed(sample) * signed('0' & gain);
+  scaled <= std_logic_vector(p(15 downto 8));
+end process;`,
+    test: comb(i => { const s = i.sample & 128n ? i.sample - 256n : i.sample; return { scaled: ((s * i.gain) >> 8n) & 255n }; })
+});
+
+/* ================================================================ types */
+add({
+    id: 'month_days', sec: 'types', title: 'Constant tables: days in a month',
+    body: `A **constant** of an array type makes a lookup table, and its index range can be anything that suits the data, such as months 1 to 12:
+
+~~~
+type days_t is array (1 to 12) of natural;
+constant MONTH_LEN : days_t := (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
+~~~
+
+Output the number of days of {month} (1 to 12) on {days}. February has 29 days while {leap} is {'1'}. The values 0, 13, 14 and 15 are not months: output 0 for them.
+
+Convert the month to an integer first. Indexing {MONTH_LEN} with 0 or 13 would stop the simulation with an index error, so check the range before you index; in hardware that check becomes the logic that outputs 0.
+
+Why not call the constant {DAYS}? VHDL does not tell upper and lower case apart, so {DAYS} would be the same name as the port {days}, and the constant would hide it.`,
+    numeric: true,
+    ports: [['month', 'in', 4], ['leap', 'in', 1], ['days', 'out', 5]],
+    solDecls: 'type days_t is array (1 to 12) of natural;\nconstant MONTH_LEN : days_t := (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);',
+    sol: `process(all)
+  variable m : natural range 0 to 15;
+begin
+  m := to_integer(unsigned(month));
+  if m < 1 or m > 12 then
+    days <= (others => '0');
+  elsif m = 2 and leap = '1' then
+    days <= std_logic_vector(to_unsigned(29, 5));
+  else
+    days <= std_logic_vector(to_unsigned(MONTH_LEN(m), 5));
+  end if;
+end process;`,
+    test: comb(i => { const T = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 0, 0, 0], m = Number(i.month); return { days: BigInt(m === 2 && i.leap ? 29 : T[m]) }; })
+});
+const SEG_PKG_HEAD = `${H}use ieee.numeric_std.all;
+
+package seg_pkg is
+  function to_seg(h : std_logic_vector(3 downto 0)) return std_logic_vector;
+end package;
+`;
+const SEG_TOP = `${H}use work.seg_pkg.all;
+
+entity top_module is
+  port (
+    byte   : in  std_logic_vector(7 downto 0);
+    seg_hi : out std_logic_vector(6 downto 0);
+    seg_lo : out std_logic_vector(6 downto 0)
+  );
+end entity;
+
+architecture rtl of top_module is
+begin
+`;
+add({
+    id: 'seg_pkg', sec: 'types', title: 'Packages: two digits, one function',
+    body: `A **package** collects declarations that several design units share: constants, types and functions. It comes in two parts. The **package declaration** lists what others may use; the **package body** holds the code of its functions. A unit that wants them names the package in a use clause, just as with {ieee.numeric_std}:
+
+~~~
+use work.seg_pkg.all;
+~~~
+
+Your own packages go into the library {work}, together with your entities.
+
+Finish the package {seg_pkg}: its function {to_seg} turns a hex digit into the seven segments {gfedcba} of a display, with the same table as the 7-segment problem. Then show the byte {byte} on two displays: {seg_hi} shows its upper digit and {seg_lo} its lower one, with one call of {to_seg} each.
+
+A constant table inside the package body is a neat way to hold the sixteen patterns; a {case} statement in the function works too.`,
+    ports: [['byte', 'in', 8], ['seg_hi', 'out', 7], ['seg_lo', 'out', 7]],
+    template: `${SEG_PKG_HEAD}
+package body seg_pkg is
+  function to_seg(h : std_logic_vector(3 downto 0)) return std_logic_vector is
+  begin
+    -- return the segments gfedcba of the hex digit h
+    return "0000000";
+  end function;
+end package body;
+
+${SEG_TOP}
+  -- Two calls of to_seg
+
+end architecture;
+`,
+    solution: `${SEG_PKG_HEAD}
+package body seg_pkg is
+  type seg_table is array (0 to 15) of std_logic_vector(6 downto 0);
+  constant SEGS : seg_table := (
+    "0111111", "0000110", "1011011", "1001111", "1100110", "1101101", "1111101", "0000111",
+    "1111111", "1101111", "1110111", "1111100", "0111001", "1011110", "1111001", "1110001");
+
+  function to_seg(h : std_logic_vector(3 downto 0)) return std_logic_vector is
+  begin
+    return SEGS(to_integer(unsigned(h)));
+  end function;
+end package body;
+
+${SEG_TOP}  seg_hi <= to_seg(byte(7 downto 4));
+  seg_lo <= to_seg(byte(3 downto 0));
+end architecture;
+`,
+    test: comb(i => ({ seg_hi: BigInt(SEG[Number(i.byte >> 4n)]), seg_lo: BigInt(SEG[Number(i.byte & 15n)]) }))
+});
+
+/* ================================================================== mem */
+const SINE = [0x80, 0xB1, 0xDA, 0xF5, 0xFF, 0xF5, 0xDA, 0xB1, 0x80, 0x4F, 0x26, 0x0B, 0x01, 0x0B, 0x26, 0x4F];
+add({
+    id: 'rom_sine', sec: 'mem', title: 'A ROM: one period of a sine',
+    body: `A ROM is a constant table that the address indexes. This one holds one period of a sine wave in 16 steps, as unsigned 8-bit samples around the middle value 128:
+
+~~~
+addr:  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+data: 80 B1 DA F5 FF F5 DA B1 80 4F 26 0B 01 0B 26 4F
+~~~
+
+Stepping the address through 0 to 15 again and again plays the wave, which is how a simple tone generator works.
+
+Write the table as a constant array of {std_logic_vector(7 downto 0)}, and read it **synchronously**: at each rising edge of {clk}, {data} takes the entry at {addr}. The memory blocks inside FPGAs work this way, with a register on the output, so the data arrives one clock cycle after its address. A synthesis tool that sees this pattern can put the table into such a block.`,
+    numeric: true,
+    ports: [['clk', 'in', 1], ['addr', 'in', 4], ['data', 'out', 8]],
+    solDecls: `type rom_t is array (0 to 15) of std_logic_vector(7 downto 0);
+constant ROM : rom_t := (x"80", x"B1", x"DA", x"F5", x"FF", x"F5", x"DA", x"B1",
+                         x"80", x"4F", x"26", x"0B", x"01", x"0B", x"26", x"4F");`,
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    data <= ROM(to_integer(unsigned(addr)));
+  end if;
+end process;`,
+    test: {
+        clk: 'clk', cycles: 120,
+        init: () => null,
+        gen: (R, k) => ({ addr: R.chance(0.7) ? BigInt(k & 15) : R.bits(4) }),
+        out: s => ({ data: s }),
+        next: (s, i) => BigInt(SINE[Number(i.addr)])
+    }
+});
+const ramNext = (mem, i, wa) => { if (!i.we) return mem; const m = mem.slice(); m[Number(wa)] = i.din; return m; };
+add({
+    id: 'ram_async', sec: 'mem', title: 'A RAM with asynchronous read',
+    body: `A RAM is an array signal: writing assigns one element, reading indexes it.
+
+~~~
+type ram_t is array (0 to 15) of std_logic_vector(7 downto 0);
+signal ram : ram_t;
+~~~
+
+Build a 16 × 8 RAM. At a rising edge of {clk} with {we} = {'1'}, the word {din} is stored at {addr}. Reading is **asynchronous**: {dout} always shows the word at {addr}, outside the clocked process, and follows a new address at once.
+
+FPGAs build such small memories from their lookup tables ("distributed RAM"). Nothing clears the memory at the start, so a word that was never written reads as {'U'}; the checker ignores those reads.`,
+    numeric: true,
+    ports: [['clk', 'in', 1], ['we', 'in', 1], ['addr', 'in', 4], ['din', 'in', 8], ['dout', 'out', 8]],
+    solDecls: 'type ram_t is array (0 to 15) of std_logic_vector(7 downto 0);\nsignal ram : ram_t;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if we = '1' then
+      ram(to_integer(unsigned(addr))) <= din;
+    end if;
+  end if;
+end process;
+
+dout <= ram(to_integer(unsigned(addr)));`,
+    test: {
+        clk: 'clk', cycles: 160,
+        init: () => new Array(16).fill(null),
+        gen: R => ({ we: B(R.chance(0.5)), addr: R.bits(4), din: R.bits(8) }),
+        out: (s, i) => ({ dout: s[Number(i.addr)] }),
+        next: (s, i) => ramNext(s, i, i.addr)
+    }
+});
+add({
+    id: 'ram_sync', sec: 'mem', title: 'Block RAM: synchronous read',
+    body: `The large memory blocks of an FPGA ("block RAM") read **synchronously**: the address is sampled at a clock edge, and the data appears after it. Build such a 16 × 8 RAM. At each rising edge of {clk}:
+
+- if {we} is {'1'}, the word {din} is stored at {addr};
+- {dout} takes the word at {addr}.
+
+When both happen at the same address, which word does {dout} get? Here the **old** one: the read sees the memory as it was before the edge. This is called read-first, and it is exactly what the two signal assignments in one clocked process do, since a signal changes only after the process has run. Some RAM blocks can also be set up as write-first, where {dout} shows the new word at once.
+
+The read happens at every edge, also when {we} is {'1'}.`,
+    numeric: true,
+    ports: [['clk', 'in', 1], ['we', 'in', 1], ['addr', 'in', 4], ['din', 'in', 8], ['dout', 'out', 8]],
+    solDecls: 'type ram_t is array (0 to 15) of std_logic_vector(7 downto 0);\nsignal ram : ram_t;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if we = '1' then
+      ram(to_integer(unsigned(addr))) <= din;
+    end if;
+    dout <= ram(to_integer(unsigned(addr)));
+  end if;
+end process;`,
+    test: {
+        clk: 'clk', cycles: 160,
+        init: () => ({ mem: new Array(16).fill(null), dout: null }),
+        gen: R => ({ we: B(R.chance(0.5)), addr: R.bits(4), din: R.bits(8) }),
+        out: s => ({ dout: s.dout }),
+        next: (s, i) => ({ mem: ramNext(s.mem, i, i.addr), dout: s.mem[Number(i.addr)] })
+    }
+});
+add({
+    id: 'regfile', sec: 'mem', title: 'A register file',
+    body: `The registers of a processor sit in a **register file**: a small memory with several ports, so that one instruction can read two operands and write a result in the same clock cycle. Build one with eight 8-bit registers, {r0} to {r7}:
+
+- two read ports, both asynchronous: {rd1} shows register {ra1}, and {rd2} shows register {ra2};
+- one write port: at a rising edge of {clk} with {we} = {'1'}, register {wa} takes {wd}.
+
+Register 0 always reads as zero, as in RISC-V and MIPS, which saves the instruction set a "load zero" instruction. Writes to it may be stored or ignored, as long as reading it gives zero.
+
+A conditional assignment handles register 0: {rd1 <= (others => '0') when ra1 = "000" else ...}.`,
+    numeric: true,
+    ports: [['clk', 'in', 1], ['we', 'in', 1], ['wa', 'in', 3], ['wd', 'in', 8], ['ra1', 'in', 3], ['ra2', 'in', 3], ['rd1', 'out', 8], ['rd2', 'out', 8]],
+    solDecls: 'type regs_t is array (0 to 7) of std_logic_vector(7 downto 0);\nsignal regs : regs_t;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if we = '1' then
+      regs(to_integer(unsigned(wa))) <= wd;
+    end if;
+  end if;
+end process;
+
+rd1 <= (others => '0') when ra1 = "000" else regs(to_integer(unsigned(ra1)));
+rd2 <= (others => '0') when ra2 = "000" else regs(to_integer(unsigned(ra2)));`,
+    test: {
+        clk: 'clk', cycles: 200,
+        init: () => new Array(8).fill(null),
+        gen: R => ({ we: B(R.chance(0.5)), wa: R.bits(3), wd: R.bits(8), ra1: R.bits(3), ra2: R.bits(3) }),
+        out: (s, i) => ({ rd1: i.ra1 === 0n ? 0n : s[Number(i.ra1)], rd2: i.ra2 === 0n ? 0n : s[Number(i.ra2)] }),
+        next: (s, i) => ramNext(s, { we: i.we, din: i.wd }, i.wa)
+    }
+});
+add({
+    id: 'fifo4', sec: 'mem', title: 'A FIFO',
+    body: `A **FIFO** (first in, first out) is a queue between a producer and a consumer that do not always run at the same pace. Build one that holds four bytes.
+
+Store the words in a 4-entry array and keep two pointers that wrap around it: the write pointer marks where the next word goes, the read pointer marks the oldest word. A count of the stored words tells empty from full. At each rising edge of {clk}:
+
+- {reset} (synchronous) empties the FIFO;
+- if {wr} is {'1'} and the FIFO is not full, {din} is stored and the write pointer moves on;
+- if {rd} is {'1'} and the FIFO is not empty, the oldest word is removed and the read pointer moves on.
+
+Both can happen in the same cycle. A write to a full FIFO is ignored even if a read happens at the same time, and a read from an empty one is ignored too.
+
+The outputs: {empty} and {full}, and {dout}, which always shows the oldest word, without a clock delay ("first-word fall-through"). While the FIFO is empty, {dout} may show anything. Two-bit {unsigned} pointers wrap from 3 to 0 by themselves.`,
+    numeric: true,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['wr', 'in', 1], ['rd', 'in', 1], ['din', 'in', 8], ['dout', 'out', 8], ['empty', 'out', 1], ['full', 'out', 1]],
+    solDecls: `type mem_t is array (0 to 3) of std_logic_vector(7 downto 0);
+signal mem    : mem_t;
+signal rp, wp : unsigned(1 downto 0);
+signal count  : integer range 0 to 4;`,
+    sol: `process(clk)
+  variable do_wr, do_rd : boolean;
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      rp <= "00";
+      wp <= "00";
+      count <= 0;
+    else
+      do_wr := wr = '1' and count < 4;
+      do_rd := rd = '1' and count > 0;
+      if do_wr then
+        mem(to_integer(wp)) <= din;
+        wp <= wp + 1;
+      end if;
+      if do_rd then
+        rp <= rp + 1;
+      end if;
+      if do_wr and not do_rd then
+        count <= count + 1;
+      elsif do_rd and not do_wr then
+        count <= count - 1;
+      end if;
+    end if;
+  end if;
+end process;
+
+empty <= '1' when count = 0 else '0';
+full  <= '1' when count = 4 else '0';
+dout  <= mem(to_integer(rp));`,
+    test: {
+        clk: 'clk', cycles: 240,
+        init: () => null,
+        gen: (R, k) => { const pr = Math.floor(k / 24) % 2 ? 0.75 : 0.25; return { reset: k === 0 ? 1n : B(R.chance(0.01)), wr: B(R.chance(0.5)), rd: B(R.chance(pr)), din: R.bits(8) }; },
+        out: s => (s === null ? { dout: null, empty: null, full: null } : { dout: s.length ? s[0] : null, empty: B(!s.length), full: B(s.length === 4) }),
+        next: (s, i) => {
+            if (i.reset) return [];
+            if (s === null) return null;
+            const w = i.wr && s.length < 4, r = i.rd && s.length > 0;
+            return s.slice(r ? 1 : 0).concat(w ? [i.din] : []);
+        }
+    }
+});
+
+/* ================================================================== rtl */
+add({
+    id: 'one_shot', sec: 'rtl', title: 'A one-shot pulse',
+    body: `Register-transfer design builds a circuit from registers and the operations between them, with a small state machine deciding which operation happens in which clock cycle. A **one-shot** is the smallest example: a state machine and a counter.
+
+When {start} is {'1'} while the circuit is idle, {pulse} goes high for exactly four clock cycles, starting in the next cycle; then the circuit is idle again. A {start} during the pulse is ignored: the pulse is not stretched. {reset} (synchronous) returns to idle.
+
+Use two states, idle and active, and a counter that runs 0 to 3 while active. {pulse} is {'1'} in the active state. Think about when the counter starts: the pulse must not be three or five cycles long.`,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['start', 'in', 1], ['pulse', 'out', 1]],
+    solDecls: 'type state_t is (idle, active);\nsignal state : state_t;\nsignal count : integer range 0 to 3;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      state <= idle;
+      count <= 0;
+    else
+      case state is
+        when idle =>
+          if start = '1' then
+            state <= active;
+            count <= 0;
+          end if;
+        when active =>
+          if count = 3 then
+            state <= idle;
+          else
+            count <= count + 1;
+          end if;
+      end case;
+    end if;
+  end if;
+end process;
+
+pulse <= '1' when state = active else '0';`,
+    test: {
+        clk: 'clk', cycles: 160,
+        init: () => null,
+        gen: (R, k) => ({ reset: k === 0 ? 1n : B(R.chance(0.01)), start: B(R.chance(0.15)) }),
+        out: s => ({ pulse: s === null ? null : B(s.on) }),
+        next: (s, i) => {
+            if (i.reset) return { on: false, n: 0 };
+            if (s === null) return null;
+            if (!s.on) return i.start ? { on: true, n: 0 } : s;
+            return s.n === 3 ? { on: false, n: 0 } : { on: true, n: s.n + 1 };
+        }
+    }
+});
+// a start/run/done machine: the model of the multiplier and of the GCD circuit
+const handshake = step => ({
+    clk: 'clk', cycles: 600,
+    init: () => null,
+    out: s => (s === null ? null : { busy: B(s.mode === 'run'), done: B(s.mode === 'fin') }),
+    next: (s, i) => {
+        if (i.reset) return { mode: 'idle', res: null };
+        if (s === null) return null;
+        if (s.mode === 'idle') return i.start ? Object.assign({ mode: 'run', res: null, n: 0 }, step.load(i)) : s;
+        if (s.mode === 'fin') return { mode: 'idle', res: s.res };
+        return step.run(s);
+    }
+});
+const mult = handshake({
+    load: i => ({ a: i.a, b: i.b }),
+    run: s => (s.n === 7 ? { mode: 'fin', res: s.a * s.b } : Object.assign({}, s, { n: s.n + 1 }))
+});
+add({
+    id: 'seq_mult', sec: 'rtl', title: 'A shift-and-add multiplier',
+    body: `A multiplier made of gates is large. When time allows, one adder can do the job over several clock cycles, the way multiplication is done on paper: for each bit of the multiplier, add the multiplicand if the bit is {1}, and shift.
+
+Build an 8 × 8 unsigned multiplier that takes eight cycles, with a **start/done handshake**:
+
+- While idle, a {start} of {'1'} at a rising edge of {clk} loads {a} and {b} into registers and begins.
+- Then for exactly eight cycles {busy} is {'1'}. In each of them the circuit looks at one bit of the multiplier, adds the multiplicand to the 16-bit product when the bit is {1}, and shifts: the multiplicand one place left, the multiplier one place right, so that its next bit comes to position 0.
+- In the cycle after that, {done} is {'1'}, and {p} holds the product. {p} keeps it until the next start.
+- {start} is ignored while busy or done. {reset} (synchronous) returns to idle.
+
+The checker compares {p} only from the cycle of {done} on, so the partial sums along the way may differ from those of the reference. Use three states, idle, run and done, and a counter for the eight steps.`,
+    numeric: true,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['start', 'in', 1], ['a', 'in', 8], ['b', 'in', 8], ['p', 'out', 16], ['busy', 'out', 1], ['done', 'out', 1]],
+    solDecls: `type state_t is (idle, run, fin);
+signal state  : state_t;
+signal mcand  : unsigned(15 downto 0);
+signal acc    : unsigned(15 downto 0);
+signal mplier : unsigned(7 downto 0);
+signal n      : integer range 0 to 7;`,
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      state <= idle;
+    else
+      case state is
+        when idle =>
+          if start = '1' then
+            mcand  <= resize(unsigned(a), 16);
+            mplier <= unsigned(b);
+            acc    <= (others => '0');
+            n      <= 0;
+            state  <= run;
+          end if;
+        when run =>
+          if mplier(0) = '1' then
+            acc <= acc + mcand;
+          end if;
+          mcand  <= shift_left(mcand, 1);
+          mplier <= shift_right(mplier, 1);
+          if n = 7 then
+            state <= fin;
+          else
+            n <= n + 1;
+          end if;
+        when fin =>
+          state <= idle;
+      end case;
+    end if;
+  end if;
+end process;
+
+p    <= std_logic_vector(acc);
+busy <= '1' when state = run else '0';
+done <= '1' when state = fin else '0';`,
+    test: Object.assign({}, mult, {
+        cycles: 300,
+        gen: (R, k) => ({ reset: k === 0 ? 1n : B(R.chance(0.005)), start: B(R.chance(0.3)), a: R.chance(0.1) ? 255n : R.bits(8), b: R.chance(0.1) ? 255n : R.bits(8) }),
+        out: s => (s === null ? { p: null, busy: null, done: null } : { p: s.res, busy: B(s.mode === 'run'), done: B(s.mode === 'fin') })
+    })
+});
+const gcdModel = handshake({
+    load: i => ({ x: i.a, y: i.b }),
+    run: s => (s.x === s.y ? { mode: 'fin', res: s.x } : s.x > s.y ? Object.assign({}, s, { x: s.x - s.y }) : Object.assign({}, s, { y: s.y - s.x }))
+});
+add({
+    id: 'gcd', sec: 'rtl', title: "Euclid's algorithm in hardware",
+    body: `The greatest common divisor of two numbers is found by subtraction alone: while the two differ, replace the larger one by the difference. When they are equal, that is the result. For 12 and 18: (12, 18), (12, 6), (6, 6), so the result is 6.
+
+Build it for unsigned 8-bit numbers, with the same handshake as the multiplier:
+
+- While idle, a {start} of {'1'} at a rising edge of {clk} loads {a} and {b} into the registers x and y, and the circuit starts running. Neither input is ever zero.
+- In each running cycle exactly one thing happens: if x = y, the circuit moves to the done state; otherwise the larger register is replaced by the difference. {busy} is {'1'} while running.
+- In the done state, which lasts one cycle, {done} is {'1'}. From then on {result} holds the divisor, until the next start.
+- {start} is ignored while running or done. {reset} (synchronous) returns to idle.
+
+Unlike the multiplier, this circuit takes a different number of cycles for different inputs, which is why it needs a handshake at all.`,
+    numeric: true,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['start', 'in', 1], ['a', 'in', 8], ['b', 'in', 8], ['result', 'out', 8], ['busy', 'out', 1], ['done', 'out', 1]],
+    solDecls: 'type state_t is (idle, run, fin);\nsignal state : state_t;\nsignal x, y  : unsigned(7 downto 0);',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      state <= idle;
+    else
+      case state is
+        when idle =>
+          if start = '1' then
+            x <= unsigned(a);
+            y <= unsigned(b);
+            state <= run;
+          end if;
+        when run =>
+          if x = y then
+            state <= fin;
+          elsif x > y then
+            x <= x - y;
+          else
+            y <= y - x;
+          end if;
+        when fin =>
+          state <= idle;
+      end case;
+    end if;
+  end if;
+end process;
+
+result <= std_logic_vector(x);
+busy   <= '1' when state = run else '0';
+done   <= '1' when state = fin else '0';`,
+    test: Object.assign({}, gcdModel, {
+        cycles: 600,
+        gen: (R, k) => {
+            const pick = () => (R.chance(0.5) ? BigInt(1 + R.int(255)) : BigInt((1 + R.int(15)) * (1 + R.int(15))));
+            return { reset: k === 0 ? 1n : 0n, start: B(R.chance(0.3)), a: pick(), b: pick() };
+        },
+        out: s => (s === null ? { result: null, busy: null, done: null } : { result: s.res, busy: B(s.mode === 'run'), done: B(s.mode === 'fin') })
+    })
+});
+add({
+    id: 'uart_tx', sec: 'rtl', title: 'A UART transmitter',
+    body: `A UART sends a byte over a single wire. The line rests at {'1'}. A frame starts with a **start bit** {'0'}, then come the eight data bits, least significant first, and a **stop bit** {'1'} ends it. Both sides agree on the bit rate, for example 115200 bits per second, so the receiver knows when to sample.
+
+Build the transmitter. A separate counter (not part of this problem) gives a one-cycle pulse on {tick} once per bit time; your circuit runs on {clk} and moves on to the next bit at each tick.
+
+- While idle, {tx} is {'1'} and {busy} is {'0'}. A {start} of {'1'} at a rising edge of {clk} loads the frame: {data} with a {'0'} below it and a {'1'} above it, ten bits in a shift register. {busy} becomes {'1'}, and {tx} shows the lowest bit of the shift register, the start bit.
+- At each rising edge with {tick} = {'1'}, the register shifts one place right, filling with {'1'}, so {tx} shows the next bit. Count the ticks: at the tenth one, which ends the stop bit, the circuit returns to idle.
+- {start} is ignored while busy, and {reset} (synchronous) returns to idle.
+
+So the start bit lasts until the first tick, and every other bit from one tick to the next. (A real transmitter also restarts its tick counter at the start, so that the start bit gets a full bit time.)`,
+    ports: [['clk', 'in', 1], ['reset', 'in', 1], ['tick', 'in', 1], ['start', 'in', 1], ['data', 'in', 8], ['tx', 'out', 1], ['busy', 'out', 1]],
+    solDecls: 'signal sh     : std_logic_vector(9 downto 0);\nsignal cnt    : integer range 0 to 9;\nsignal active : std_logic;',
+    sol: `process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      active <= '0';
+    elsif active = '0' then
+      if start = '1' then
+        sh     <= '1' & data & '0';
+        cnt    <= 0;
+        active <= '1';
+      end if;
+    elsif tick = '1' then
+      if cnt = 9 then
+        active <= '0';
+      else
+        sh  <= '1' & sh(9 downto 1);
+        cnt <= cnt + 1;
+      end if;
+    end if;
+  end if;
+end process;
+
+tx   <= sh(0) when active = '1' else '1';
+busy <= active;`,
+    test: {
+        clk: 'clk', cycles: 300,
+        init: () => null,
+        gen: (R, k) => ({ reset: k === 0 ? 1n : 0n, tick: B(k % 4 === 3), start: B(R.chance(0.25)), data: R.bits(8) }),
+        out: s => (s === null ? { tx: null, busy: null } : { tx: s.on ? s.sh & 1n : 1n, busy: B(s.on) }),
+        next: (s, i) => {
+            if (i.reset) return { on: false };
+            if (s === null) return null;
+            if (!s.on) return i.start ? { on: true, sh: (1n << 9n) | (i.data << 1n), n: 0 } : s;
+            if (!i.tick) return s;
+            return s.n === 9 ? { on: false } : { on: true, sh: (1n << 9n) | (s.sh >> 1n), n: s.n + 1 };
+        }
+    }
 });
 
 G.VHDLProblems = { LIB, SECTIONS, PROBLEMS: P };

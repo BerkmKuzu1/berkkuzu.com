@@ -145,5 +145,48 @@ function run(prob, userText, LIB, opt) {
     return { ok: bad === 0, phase: 'done', total: S.length, bad, mism, trace, warnings, messages: fixLoc(d.messages()), clk };
 }
 
-G.VHDLCheck = { rng, toStr, fromStr, entityText, template, solution, steps, run, portDecl };
+/* ---------- an example of the book: apply its steps and record every port.
+   spec = { top?, clk?, steps: ['a=0 b=01', ...] }; without top, the last entity is simulated */
+const stepPairs = s => (s || '').trim().split(/\s+/).filter(Boolean).map(kv => { const i = kv.indexOf('='); return [kv.slice(0, i), kv.slice(i + 1)]; });
+function topOf(text) {
+    let m, last = null;
+    const re = /^\s*entity\s+(\w+)\s+is\b/gim;
+    while ((m = re.exec(text))) last = m[1].toLowerCase();
+    return last;
+}
+function simulate(spec, text) {
+    const top = spec.top || topOf(text);
+    if (!top) return { ok: false, phase: 'compile', errors: [{ line: 0, msg: 'There is no entity to simulate.' }], warnings: [] };
+    const d = VHDL.compile([{ name: 'example', text }], top);
+    if (!d.ok) return { ok: false, phase: 'compile', errors: d.errors, warnings: d.warnings || [] };
+    const trace = [];
+    let k = 0;
+    const stop = msg => { const e = new Error(msg); e.where = { line: 0, msg }; throw e; };
+    try {
+        d.reset();
+        if (spec.clk) {
+            if (!d.ports.some(p => p.name === spec.clk && p.mode === 'in')) stop(`the example needs the clock input '${spec.clk}'`);
+            d.set(spec.clk, '0'); d.settle();
+        }
+        for (k = 0; k < spec.steps.length; k++) {
+            for (const [n, v] of stepPairs(spec.steps[k])) {
+                const p = d.ports.find(x => x.name === n);
+                if (!p || p.mode !== 'in') stop(`the example drives the input '${n}', which the entity no longer has; keep its ports as they were`);
+                if (p.width !== v.length) stop(`'${n}' is ${p.width} ${p.width === 1 ? 'bit' : 'bits'} wide now, but the example drives it with ${v.length}; keep its ports as they were`);
+                d.set(n, v);
+            }
+            d.settle();
+            const got = {};
+            for (const p of d.ports) if (p.name !== spec.clk) got[p.name] = d.get(p.name);
+            trace.push(got);
+            if (spec.clk) { d.set(spec.clk, '1'); d.settle(); d.set(spec.clk, '0'); d.settle(); }
+        }
+    } catch (e) {
+        const w = e.where || { line: 0, msg: e.message };
+        return { ok: false, phase: 'sim', errors: [Object.assign({}, w, { msg: `${w.msg} (step ${k + 1})` })], warnings: d.warnings, trace, ports: d.ports };
+    }
+    return { ok: true, phase: 'done', ports: d.ports, trace, warnings: d.warnings, messages: d.messages() };
+}
+
+G.VHDLCheck = { rng, toStr, fromStr, entityText, template, solution, steps, run, portDecl, simulate, stepPairs, topOf };
 })(typeof window !== 'undefined' ? window : globalThis);
