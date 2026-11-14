@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>VHDL Problem Sets — Berk Muammer Kuzu</title>
-<meta name="description" content="A hands-on VHDL book: 13 chapters with examples that run in your browser, and 72 classic circuits to write, from gates and vectors to state machines, memories and a UART, each checked by a VHDL-2008 simulator.">
+<meta name="description" content="A hands-on VHDL book: 14 chapters with examples that run in your browser, 72 classic circuits to write and 4 testbenches that must catch bugs, all checked by a VHDL-2008 simulator.">
 <link rel="canonical" href="https://berkkuzu.com/vhdl.html">
 
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="berkkuzu.com">
 <meta property="og:title" content="VHDL Problem Sets — learn VHDL by solving">
-<meta property="og:description" content="A hands-on VHDL book: read a chapter, run its examples, then write 72 circuits that are checked right in your browser.">
+<meta property="og:description" content="A hands-on VHDL book: read a chapter, run its examples, then write circuits and testbenches that are checked right in your browser.">
 <meta property="og:url" content="https://berkkuzu.com/vhdl.html">
 <meta property="og:image" content="https://berkkuzu.com/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -174,6 +174,9 @@ pre.code { background: var(--code-bg); border: 1px solid var(--border); border-r
 .try .wave { background: var(--code-bg); }
 .wv-o { stroke: var(--accent); stroke-width: 1.6; fill: none; }
 .wv-bo { fill: none; stroke: var(--accent); stroke-width: 1.2; }
+.mt-t { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-mute); }
+.mt .okc { color: var(--ok); font-weight: 600; }
+.tb-end { margin: 0.2rem 0 0; }
 .pager { margin-top: 1.8rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .toc { list-style: none; margin: 0.6rem 0 0; padding: 0; display: grid; gap: 0.55rem; max-width: 80ch; }
 .toc > li { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.75rem 0.95rem; background: var(--surface); }
@@ -254,8 +257,10 @@ pre.code { background: var(--code-bg); border: 1px solid var(--border); border-r
                         <p>It covers the synthesizable VHDL these problems use: <code>std_logic</code> and its vectors,
                             <code>numeric_std</code>, processes, generics, <code>generate</code>, functions, enumerated
                             types and VHDL-2008 additions such as <code>process(all)</code>, <code>case?</code> and the
-                            reduction operators. Wait statements, records, procedures, files and real numbers are not
-                            supported. Every reference solution and every example of the chapters has also been run in GHDL with the same inputs.</p>
+                            reduction operators. It also runs testbenches in simulated time: <code>after</code> delays,
+                            wait statements, assertions and <code>std.env.finish</code>. Records, procedures, files and
+                            real numbers are not supported. Every reference solution and every example of the chapters
+                            has also been run in GHDL with the same inputs.</p>
                         <p>The circuits are the classics of digital design textbooks, such as those by Mano, Wakerly,
                             Brown and Vranesic, Harris and Harris, Pedroni and Chu: majority voters, comparators,
                             adder-subtractors, shift registers, LFSRs, Hamming codes, sequence detectors and double
@@ -302,10 +307,10 @@ pre.code { background: var(--code-bg); border: 1px solid var(--border); border-r
 </footer>
 
 <script src="script.js"></script>
-<script src="assets/vhdl/sim.js?v=20261115"></script>
-<script src="assets/vhdl/check.js?v=20261115"></script>
-<script src="assets/vhdl/problems.js?v=20261115"></script>
-<script src="assets/vhdl/book.js?v=20261115"></script>
+<script src="assets/vhdl/sim.js?v=20261115b"></script>
+<script src="assets/vhdl/check.js?v=20261115b"></script>
+<script src="assets/vhdl/problems.js?v=20261115b"></script>
+<script src="assets/vhdl/book.js?v=20261115b"></script>
 <script>
 (function () {
 'use strict';
@@ -593,6 +598,79 @@ function waveform(p, r) {
     return waveSvg(rows, tr.slice(start, start + n), { start, bad: s => s.wrong, aria: 'Waveform of the inputs, the expected outputs and your outputs' });
 }
 
+/* ---------- a testbench run: a waveform in time, its messages, how it ended */
+function fmtT(fs) {
+    if (!fs) return '0 ns';
+    for (const [u, k] of [['ms', 1e12], ['us', 1e9], ['ns', 1e6], ['ps', 1e3]]) if (fs % k === 0) return `${fs / k} ${u}`;
+    return `${fs} fs`;
+}
+function timeWave(wave) {
+    const sigs = wave.sigs;
+    const end = Math.max(wave.end, ...wave.changes.map(c => c.t));
+    if (!sigs.length || end <= 0) return null;
+    const segs = new Map(sigs.map(s2 => [s2.name, []]));
+    for (const c of wave.changes) segs.get(c.n).push(c);
+    // the shortest interval gets a few pixels, the whole run at most 2400
+    const times = [...new Set(wave.changes.map(c => c.t).concat([end]))].sort((a, b) => a - b);
+    let minDt = Infinity;
+    for (let i = 1; i < times.length; i++) minDt = Math.min(minDt, times[i] - times[i - 1]);
+    const px = Math.min(Math.max(700 / end, isFinite(minDt) ? 7 / minDt : 0), 2400 / end);
+    const NW = 18 + 7.2 * Math.max(...sigs.map(s2 => s2.name.length)), RH = 26, H = sigs.length * RH + 24;
+    const W = NW + end * px + 14, X = t => NW + t * px;
+    const S = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(S, 'svg');
+    svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Waveform of the testbench signals over time');
+    const el = (t, a, txt) => { const e = document.createElementNS(S, t); for (const k in a) e.setAttribute(k, a[k]); if (txt !== undefined) e.textContent = txt; svg.append(e); return e; };
+    // the time grid: steps of 1, 2 or 5 times a power of ten, at least 64 px apart
+    const steps = [];
+    for (let k = 1e3; k <= 1e15; k *= 10) steps.push(k, 2 * k, 5 * k);
+    const step = steps.find(st => st * px >= 64) || end;
+    for (let t = 0; t <= end; t += step) {
+        el('line', { x1: X(t), y1: 2, x2: X(t), y2: H - 20, class: 'wv-g' });
+        el('text', { x: X(t), y: H - 5, class: 'wv-n', 'text-anchor': t ? 'middle' : 'start' }, fmtT(t));
+    }
+    sigs.forEach((sg, ri) => {
+        const y0 = ri * RH + 4, yh = y0 + 4, yl = y0 + RH - 8, ym = (yh + yl) / 2;
+        el('text', { x: 8, y: ym + 4, class: 'wv-n' }, sg.name);
+        const list = segs.get(sg.name);
+        list.forEach((c, k) => {
+            const x0 = X(c.t), x1 = X(k + 1 < list.length ? list[k + 1].t : end), v = c.v;
+            if (sg.w === 1) {
+                if (v === '0' || v === '1' || v === 'L' || v === 'H') {
+                    const y = v === '1' || v === 'H' ? yh : yl;
+                    const prev = k ? list[k - 1].v : null;
+                    const py = prev === '1' || prev === 'H' ? yh : prev === '0' || prev === 'L' ? yl : null;
+                    el('path', { d: (py !== null && py !== y ? `M${x0} ${py} L${x0} ${y}` : `M${x0} ${y}`) + ` L${x1} ${y}`, class: 'wv-l' });
+                } else if (v === 'Z') el('path', { d: `M${x0} ${ym} L${x1} ${ym}`, class: 'wv-z' });
+                else if (x1 > x0) {
+                    el('rect', { x: x0, y: yh, width: x1 - x0, height: yl - yh, class: 'wv-x' });
+                    if (x1 - x0 > 12) el('text', { x: (x0 + x1) / 2, y: ym + 3.5, class: 'wv-v', 'text-anchor': 'middle' }, v);
+                }
+                return;
+            }
+            if (x1 - x0 < 1) return;
+            const bad = sg.w >= 2 && !/^[01]+$/.test(v), e = Math.min(4, (x1 - x0) / 2);
+            el('path', { d: `M${x0} ${ym} L${x0 + e} ${yh} L${x1 - e} ${yh} L${x1} ${ym} L${x1 - e} ${yl} L${x0 + e} ${yl} Z`, class: bad ? 'wv-x' : 'wv-b' });
+            const txt = sg.w >= 2 ? fmtVal(v, sg.w) : v, room = (x1 - x0 - 8) / 6.4;
+            if (room > 1.5) el('text', { x: (x0 + x1) / 2, y: ym + 3.5, class: 'wv-v', 'text-anchor': 'middle' }, txt.length > room ? txt.slice(0, Math.max(1, Math.floor(room) - 1)) + '…' : txt);
+        });
+    });
+    return h('div', { class: 'wave' }, svg);
+}
+function endNote(r) {
+    const at = fmtT(r.end);
+    return { finish: `The simulation ended at ${at}, with std.env.finish.`, stop: `The simulation ended at ${at}, with std.env.stop.`,
+        quiet: `The simulation ended at ${at}: nothing was left to happen.`, failure: `The simulation stopped at ${at}, at an assertion of severity failure.`,
+        limit: `The simulation reached its limit of ${fmtT(VHDLCheck.TB_LIMIT)} at ${at} and was stopped. End a testbench with std.env.finish, or stop its clock.` }[r.reason] || '';
+}
+function msgList(msgs, edr) {
+    const cls = { note: 'n', warning: 'w' };
+    const shown = msgs.slice(0, 60);
+    return h('ul', { class: 'msgs' }, shown.map(m => h('li', { class: cls[m.sev] || null }, lineBtn(m, edr), h('span', { class: 'mt-t' }, `@${fmtT(m.t)}`), ` ${m.sev}: ${m.msg}`)),
+        msgs.length > shown.length ? h('li', { class: 'n' }, `… and ${msgs.length - shown.length} more`) : null);
+}
+
 /* ---------- messages */
 function lineBtn(e, edr) {
     if (!e.line || e.mine === false) return e.mine === false ? h('span', { class: 'ln' }, 'provided code') : null;
@@ -620,6 +698,15 @@ function mountTry(box, spec) {
         if (!r.ok) {
             parts.push(h('div', { class: 'banner bad' }, r.phase === 'compile' ? '✗ The code does not compile.' : '✗ The simulation stopped with an error.'));
             parts.push(h('ul', { class: 'msgs' }, r.errors.map(e => h('li', null, lineBtn(e, te), e.msg))));
+        }
+        if (r.tb) {
+            const tw = timeWave(r.wave);
+            if (tw) parts.push(tw);
+            parts.push(h('p', { class: 'keys tb-end' }, endNote(r)));
+            if (r.messages && r.messages.length) parts.push(msgList(r.messages, te));
+            if (r.warnings && r.warnings.length) parts.push(h('ul', { class: 'msgs' }, r.warnings.map(w => h('li', { class: 'w' }, lineBtn(w, te), w.msg))));
+            res.replaceChildren(...parts);
+            return;
         }
         if (r.trace && r.trace.length) {
             const rows = [];
@@ -689,15 +776,16 @@ function show(p) {
     renderNav(p.id);
     const res = h('div', { class: 'res', 'aria-live': 'polite' });
     const solBox = h('div', { class: 'sol' });
-    ed = editor(store.code[p.id] || VHDLCheck.template(p), v => { store.code[p.id] = v; save(); }, () => check(p, res, solBox));
+    const run = () => (p.tb ? checkTB(p, res, solBox) : check(p, res, solBox));
+    ed = editor(store.code[p.id] || VHDLCheck.template(p), v => { store.code[p.id] = v; save(); }, run);
     $('prob').replaceChildren(
         h('span', { class: 'p-kicker' }, `Chapter ${p.ch.no} · ${p.ch.title} · Exercise ${p.k} of ${p.of}`),
         h('h2', { class: 'p-title' }, `${p.num} ${p.title}`, store.solved[p.id] ? h('span', { class: 'p-solved' }, 'Solved') : null),
         h('div', { class: 'p-body', html: md(p.body) }),
-        h('div', { class: 'ed-bar' }, h('span', { class: 'lbl' }, 'Your code'), h('span', { class: 'keys' }, 'Ctrl+Enter checks · Tab indents')),
+        h('div', { class: 'ed-bar' }, h('span', { class: 'lbl' }, p.tb ? 'Your testbench' : 'Your code'), h('span', { class: 'keys' }, 'Ctrl+Enter checks · Tab indents')),
         ed.el,
         h('div', { class: 'btns' },
-            h('button', { type: 'button', class: 'cbtn pri', onclick: () => check(p, res, solBox) }, '▶ Check'),
+            h('button', { type: 'button', class: 'cbtn pri', onclick: run }, '▶ Check'),
             h('button', { type: 'button', class: 'cbtn', onclick: () => { if (confirm('Replace your code with the starting template?')) { ed.set(VHDLCheck.template(p)); ed.mark({}); store.code[p.id] = ed.value; save(); res.replaceChildren(); } } }, 'Reset')),
         res, solBox, pager(p));
     solutionButton(p, solBox);
@@ -745,6 +833,54 @@ function check(p, res, solBox) {
     }
     if (r.warnings && r.warnings.length) parts.push(h('p', { class: 'h4' }, 'Warnings'), h('ul', { class: 'msgs' }, r.warnings.map(w => h('li', { class: 'w' }, lineBtn(w, ed), w.msg))));
     if (r.messages && r.messages.length) parts.push(h('p', { class: 'h4' }, 'Messages from the simulation'), h('ul', { class: 'msgs' }, r.messages.slice(0, 8).map(m => h('li', { class: 'n' }, lineBtn(m, ed), `${m.sev}: ${m.msg}`))));
+    parts.push(h('p', { class: 'keys' }, `Checked in ${ms} ms.`));
+    const next = ITEMS[p.pos + 1];
+    if (r.ok && next) parts.push(h('div', null, h('a', { class: 'cbtn pri', href: '#' + next.id }, next.kind === 'lesson' ? `Next chapter: ${next.ch.title} →` : 'Next exercise →')));
+    res.replaceChildren(...parts);
+    solutionButton(p, solBox);
+    if (!r.ok) res.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function checkTB(p, res, solBox) {
+    const t0 = performance.now();
+    let r;
+    try { r = VHDLCheck.runTB(p, ed.value); }
+    catch (e) { r = { ok: false, phase: 'compile', errors: [{ line: 0, msg: 'The checker failed: ' + e.message, mine: true }], warnings: [] }; }
+    const ms = Math.round(performance.now() - t0);
+    markLines(ed, r, true);
+    const parts = [];
+    if (r.ok) {
+        const first = !store.solved[p.id];
+        store.solved[p.id] = true;
+        save();
+        parts.push(h('div', { class: 'banner ok' }, '✓ Correct.', h('small', null, `Your testbench accepts the correct design and catches all ${r.total} broken ones${first ? ' — solved!' : ''}`)));
+        renderNav(p.id);
+        const t = document.querySelector('.p-title');
+        if (t && !t.querySelector('.p-solved')) t.append(h('span', { class: 'p-solved' }, 'Solved'));
+    } else {
+        store.tries[p.id] = (store.tries[p.id] || 0) + 1;
+        save();
+        if (r.phase === 'compile') parts.push(h('div', { class: 'banner bad' }, '✗ The code does not compile.', h('small', null, 'Fix the error below and check again.')));
+        else if (r.phase === 'interface') parts.push(h('div', { class: 'banner bad' }, '✗ This is not a testbench yet.'));
+        else if (r.phase === 'sim') parts.push(h('div', { class: 'banner bad' }, '✗ The simulation stopped with an error.'));
+        else if (r.results[0].caught) parts.push(h('div', { class: 'banner bad' }, '✗ Your testbench reports an error for the correct design.', h('small', null, 'A testbench must pass a design that works.')));
+        else { const miss = r.results.slice(1).filter(x => !x.caught).length; parts.push(h('div', { class: 'banner bad' }, `✗ ${miss} of ${r.total} broken designs slip through.`, h('small', null, 'Your testbench reports no error for them.'))); }
+        if (r.errors && r.errors.length) parts.push(h('ul', { class: 'msgs' }, r.errors.map(e => h('li', null, lineBtn(e, ed), e.msg))));
+    }
+    if (r.results) {
+        const rows = r.results.map(x => {
+            const verdict = x.good ? (x.caught ? '✗ reports an error' : '✓ no errors') : (x.caught ? `✓ caught at ${fmtT(x.first.t)}` : '✗ not caught');
+            const good = x.good ? !x.caught : x.caught;
+            return h('tr', null, h('td', null, x.title), h('td', { class: good ? 'okc' : 'x' }, verdict), h('td', null, x.first ? x.first.msg : ''));
+        });
+        parts.push(h('p', { class: 'h4' }, 'The designs your testbench ran on'), h('div', { class: 'tblwrap' }, h('table', { class: 'mt lt' }, h('thead', null, h('tr', null, h('th', null, 'Design'), h('th', null, 'Result'), h('th', null, 'First error your testbench reported'))), h('tbody', null, rows))));
+        const c = r.results[0];
+        const tw = timeWave(c.wave);
+        if (tw) parts.push(h('p', { class: 'h4' }, 'Waveform with the correct design'), tw);
+        parts.push(h('p', { class: 'keys tb-end' }, endNote(c)));
+        if (c.messages.length) parts.push(h('p', { class: 'h4' }, 'Messages with the correct design'), msgList(c.messages, ed));
+    }
+    if (r.warnings && r.warnings.length) parts.push(h('p', { class: 'h4' }, 'Warnings'), h('ul', { class: 'msgs' }, r.warnings.map(w => h('li', { class: 'w' }, lineBtn(w, ed), w.msg))));
     parts.push(h('p', { class: 'keys' }, `Checked in ${ms} ms.`));
     const next = ITEMS[p.pos + 1];
     if (r.ok && next) parts.push(h('div', null, h('a', { class: 'cbtn pri', href: '#' + next.id }, next.kind === 'lesson' ? `Next chapter: ${next.ch.title} →` : 'Next exercise →')));

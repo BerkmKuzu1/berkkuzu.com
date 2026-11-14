@@ -24,7 +24,8 @@ const BLURBS = {
     types: 'Your own types and subtypes, attributes, functions, and packages that share them between designs.',
     mem: 'ROMs and RAMs as arrays, synchronous and asynchronous reads, register files and FIFOs.',
     rtl: 'Datapaths with a controller: FSMD design, start/done handshakes, algorithms that take many cycles, and a UART.',
-    next: 'Testbenches, simulators for your own computer, and the books to read next.'
+    tb: 'Testbenches: clocks and stimulus, wait and after, assertions that check results, and exercises that ask you to catch bugs.',
+    next: 'Simulators for your own computer, and the books to read next.'
 };
 
 /* ======================================================= 1 Getting started */
@@ -46,7 +47,7 @@ Then come the exercises. Each one describes a circuit; you write its VHDL in the
 
 Everything runs in your browser: nothing is uploaded, and your code and progress are kept in this browser only.
 
-> The checker is a VHDL-2008 simulator written for this book. It knows the synthesizable part of VHDL that the chapters use, and every example and reference solution has also been run in GHDL, an open-source VHDL simulator, with the same inputs. Chapter 13 shows how to install a simulator on your own computer.`);
+> The checker is a VHDL-2008 simulator written for this book. It knows the VHDL that the chapters use, from synthesizable designs to testbenches, and every example and reference solution has also been run in GHDL, an open-source VHDL simulator, with the same inputs. Chapter 13 shows how to write testbenches of your own, and chapter 14 how to run them on your computer.`);
 ex('first_look', {
     code: `${H}
 entity first_look is
@@ -664,8 +665,10 @@ end architecture;
     steps: ['d=1 en=1', 'd=0 en=1', 'd=1 en=1', 'd=1 en=0', 'd=0 en=0', 'd=1 en=0', 'd=0 en=1', 'd=1 en=0']
 });
 
-/* ===================================================== 6 Clocked logic */
-page('clocked', 'registers', 'Flip-flops and registers', `Almost every digital design is **synchronous**: one clock signal drives all registers, and at each rising edge of the clock every register stores the value at its input. Between two edges, the combinational logic computes the next values from the current ones. As long as that logic settles within one clock period, the circuit does exactly what its description says, and checking that it does is the job of the timing analysis that every FPGA and chip flow runs.
+/* ================================================== 6 Sequential logic */
+page('clocked', 'registers', 'Flip-flops and registers', `Combinational logic computes its outputs from its present inputs alone. **Sequential logic** also remembers: its outputs depend on what happened before, and the memory sits in flip-flops. (Do not confuse it with the sequential statements of a process: a process can describe either kind.)
+
+Almost every digital design is **synchronous**: one clock signal drives all registers, and at each rising edge of the clock every register stores the value at its input. Between two edges, the combinational logic computes the next values from the current ones. As long as that logic settles within one clock period, the circuit does exactly what its description says, and checking that it does is the job of the timing analysis that every FPGA and chip flow runs.
 
 ## The D flip-flop
 
@@ -740,7 +743,7 @@ end architecture;
     steps: ['reset=1 en=0', 'reset=0 en=1', 'en=1', 'en=1', 'en=0', 'en=0', 'en=1', 'en=1', 'reset=1', 'reset=0 en=1', 'en=1', 'en=1']
 });
 
-page('clocked', 'counters', 'Counters, shift registers and clock enables', `Counters and shift registers are the workhorses of clocked logic.
+page('clocked', 'counters', 'Counters, shift registers and clock enables', `Counters and shift registers are the workhorses of sequential logic.
 
 ## Counters
 
@@ -1649,14 +1652,60 @@ end architecture;
     steps: ['reset=1', 'reset=0', '', '', '', '', '', '', '', '', '', '', '', '']
 });
 
-/* ============================================== 13 Going further */
-page('next', 'testbenches', 'Testbenches and simulators', `The checker of this book drives your designs with test inputs and compares their outputs. In your own projects, a **testbench** does that job: a VHDL design that has no ports, contains the design under test, and drives it.
+/* ===================================================== 13 Testbenches */
+page('tb', 'testbenches', 'Testbenches', `Every exercise so far had a checker that drove your design with inputs and compared its outputs. In your own projects, you write that part yourself, in VHDL: a **testbench**. It is a design with no ports that contains the design under test, drives its inputs, and checks its outputs.
 
-~~~
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+The example tests the counter of chapter 6. Both are in the same code box; the testbench, the last entity, is what runs. The waveform now has a time axis, and the messages below it carry the time at which they were reported.
 
+~~~try tb_count
+
+## What is new
+
+- {entity tb_counter is end entity;} A testbench has no ports: nothing is outside it.
+- {clk <= not clk after 5 ns;} **after** delays an assignment. Each time the clock changes, this line plans the opposite value 5 ns later: a clock with a period of 10 ns, which runs for ever.
+- The process has no sensitivity list. Instead it **waits**. {wait until rising_edge(clk);} suspends it until the next rising edge; {wait for 1 ns;} for a stretch of time; {wait;} for ever. A testbench reads like a script, from top to bottom.
+- {assert condition report "text" severity error;} checks the condition. When it is false, the simulator prints the report, with the **severity** {note}, {warning}, {error} or {failure}. A failure stops the simulation at once; the other levels let it go on.
+- {std.env.finish;} (VHDL-2008) ends the simulation. Without it, the clock would keep it going for ever, and the simulator here would stop it at its time limit.
+
+Now break the counter: change {count + 1} into {count + 2} in the first entity and run again. The first assertion that fails tells what went wrong, and when.
+
+## Testbenches are not hardware
+
+Waits and delays describe behavior over time, not circuits: no synthesis tool turns {wait for 1 ns} into gates. That is why testbenches can use everything VHDL has, while the designs they test stick to the synthesizable part.
+
+## after and the kinds of delay
+
+{after} also works inside a process, and an assignment can plan several values at once: {rst <= '1', '0' after 20 ns;} raises a reset now and releases it 20 ns later.
+
+A delay is **inertial** by default: like a real gate, it swallows pulses shorter than itself. {y <= a after 3 ns;} never passes on a 1 ns pulse of {a}. {y <= transport a after 3 ns;} passes everything, like an ideal wire. Testbenches mostly use plain {after} on stimulus, where the difference does not arise.`);
+ex('tb_count', {
+    tb: true,
+    code: `${HN}
+entity counter_en is
+  port (
+    clk, reset, en : in  std_logic;
+    q              : out std_logic_vector(3 downto 0)
+  );
+end entity;
+
+architecture rtl of counter_en is
+  signal count : unsigned(3 downto 0);
+begin
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        count <= (others => '0');
+      elsif en = '1' then
+        count <= count + 1;
+      end if;
+    end if;
+  end process;
+
+  q <= std_logic_vector(count);
+end architecture;
+
+${HN}
 entity tb_counter is
 end entity;
 
@@ -1676,10 +1725,10 @@ begin
     wait until rising_edge(clk);              -- the reset takes effect here
     reset <= '0';
     en    <= '1';
-    for i in 1 to 20 loop
+    for i in 1 to 6 loop
       wait until rising_edge(clk);
       wait for 1 ns;                          -- let the outputs settle
-      assert unsigned(q) = i mod 16
+      assert unsigned(q) = i
         report "q is " & to_string(q) & " after " & integer'image(i) & " counts"
         severity error;
     end loop;
@@ -1687,20 +1736,89 @@ begin
     std.env.finish;
   end process;
 end architecture;
-~~~
+`
+});
 
-It tests the counter from the example of chapter 6. New elements:
+page('tb', 'self-checking', 'Self-checking testbenches', `A testbench that only drives inputs leaves the real work to whoever stares at the waveform, every time something changes. A **self-checking** testbench decides on its own whether the design is right, so that it can run after every change and say "pass" or "fail".
 
-- {after 5 ns} delays an assignment: the clock line inverts itself every 5 ns, which makes a clock with a period of 10 ns.
-- The process has no sensitivity list. Instead it **waits**: {wait until rising_edge(clk);} suspends it until the next rising edge, {wait for 1 ns;} for a given time. A testbench reads like a script, from top to bottom.
-- {assert} checks a condition and, when it is false, prints the report with the given **severity** ({note}, {warning}, {error} or {failure}).
-- {std.env.finish} (VHDL-2008) ends the simulation; without it, the clock would run forever.
+## Where the expected values come from
 
-Wait statements and delays describe behavior over time, not hardware, so testbenches are never synthesized. The simulator of this book does not run them; it drives the designs itself, step by step.
+- **Computed in the testbench**, with the operators of VHDL: the sum {i + j}, the count of ones, the parity. The testbench can use integers, loops and anything else that makes the reference obviously right.
+- **A model** of a clocked design: a variable that does, at every clock edge, what the design should do, such as {expect := (expect + 1) mod 16;}.
+- **A table** of known input and output pairs, for designs whose function has no simple formula.
 
-## Simulating on your own computer
+## How many inputs?
 
-[GHDL](https://ghdl.github.io/ghdl/) is a free, open-source VHDL simulator for Linux, Windows and macOS, and it has been used to check every example of this book. With the counter in {counter_en.vhd} and the testbench in {tb_counter.vhd}:
+Small combinational blocks are tested **exhaustively**: a loop over every input value. Up to some 16 input bits that takes no time, and it leaves nothing to chance. Larger designs get the cases that bugs love: zero, the largest value, the wrap from the largest back to zero, every control input in every state, a reset in the middle of work, and events that come back to back.
+
+## When to look
+
+In a clocked design, change the inputs away from the clock edge, and read the outputs after it: {wait until rising_edge(clk); wait for 1 ns;}, or check in the middle of the cycle with {wait until falling_edge(clk);}. A check right at the edge races with the edge itself.
+
+## Reports that help
+
+Put the inputs and both values into the message: {"3 + 14 gives 1, expected 17"} starts the debugging, {"wrong"} does not. Count the errors in a variable and finish with a summary, so that one look at the end tells the result.
+
+The example tests a Gray-code converter over all eight inputs. The converter has a copy-and-paste bug: run the testbench and read what it reports, then fix the line marked in the first entity and run again.
+
+~~~try gray_check
+
+## The exercises
+
+The exercises of this chapter give you a working design, and the checker keeps a few broken copies of it. Your testbench passes when it reports no error for the working design and at least one error for every broken copy. It is how real verification works: a test is only as good as the bugs it catches.`);
+ex('gray_check', {
+    tb: true,
+    code: `${HN}
+entity bin2gray is
+  port (
+    b : in  std_logic_vector(2 downto 0);
+    g : out std_logic_vector(2 downto 0)
+  );
+end entity;
+
+architecture rtl of bin2gray is
+begin
+  g(2) <= b(2);
+  g(1) <= b(1) xor b(0);       -- the bug: this should be b(2) xor b(1)
+  g(0) <= b(1) xor b(0);
+end architecture;
+
+${HN}
+entity tb_gray is
+end entity;
+
+architecture sim of tb_gray is
+  signal b, g : std_logic_vector(2 downto 0);
+begin
+  dut: entity work.bin2gray port map (b => b, g => g);
+
+  process
+    variable want   : std_logic_vector(2 downto 0);
+    variable errors : natural := 0;
+  begin
+    for i in 0 to 7 loop
+      b <= std_logic_vector(to_unsigned(i, 3));
+      wait for 10 ns;
+      want := b xor ('0' & b(2 downto 1));     -- the reference: b xor (b shifted right)
+      if g /= want then
+        errors := errors + 1;
+        report "b = " & to_string(b) & ": g is " & to_string(g) & ", expected " & to_string(want)
+          severity error;
+      end if;
+    end loop;
+    report integer'image(errors) & " of 8 inputs failed";
+    std.env.finish;
+  end process;
+end architecture;
+`
+});
+
+/* ===================================================== 14 Going further */
+page('next', 'simulators', 'Simulators for your computer', `Everything in this book also runs in the simulators that people use at work. One of them is free and small enough to install in a minute.
+
+## GHDL
+
+[GHDL](https://ghdl.github.io/ghdl/) is an open-source VHDL simulator for Linux, Windows and macOS, and it has been used to check every example and exercise of this book. With the counter of chapter 6 in {counter_en.vhd} and the testbench of chapter 13 in {tb_counter.vhd}:
 
 ~~~
 ghdl -a --std=08 counter_en.vhd tb_counter.vhd
@@ -1708,9 +1826,19 @@ ghdl -e --std=08 tb_counter
 ghdl -r --std=08 tb_counter --wave=tb_counter.ghw
 ~~~
 
-The three commands analyze the files, elaborate the testbench, and run it, recording every signal into a file that the waveform viewer [GTKWave](https://gtkwave.sourceforge.net/) opens. NVC is another open-source simulator; the FPGA vendors ship simulators with their tools (Vivado has one built in, Quartus comes with a Questa edition), and the large commercial simulators, such as Questa and Riviera-PRO, are what companies use.
+The first command **analyzes** the files: it checks them and puts the design units into the library {work}, in the order given, so a design goes before its testbench. The second **elaborates** the testbench: it builds the hierarchy below it. The third **runs** it, prints the reports and assertions, and records every signal into a file.
 
-> A good habit from the first day: for every design, a self-checking testbench, whose assertions decide pass or fail, so that no one has to stare at waveforms to know whether a change broke something.`);
+## Waveform viewers
+
+[GTKWave](https://gtkwave.sourceforge.net/) opens that file and shows the signals over time, with the hierarchy of the design on the side: the desktop version of the waveforms in this book.
+
+## Other simulators
+
+- **NVC** is another open-source VHDL simulator, fast and with good VHDL-2008 support.
+- The FPGA vendors ship simulators with their tools: Vivado has one built in, and Quartus comes with an edition of Questa.
+- The large commercial simulators, such as Questa and Riviera-PRO, are what companies use for big designs and mixed VHDL and Verilog.
+
+> A good habit from the first day: a self-checking testbench for every design, run after every change, so that nobody has to stare at waveforms to know whether something broke.`);
 
 page('next', 'reading', 'Where to read more', `This book covers the VHDL that synthesizable designs use every day. These are the books it draws on, and the ones to read next.
 

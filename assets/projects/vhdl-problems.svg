@@ -33,7 +33,7 @@
 <rect x="24" y="186" width="552" height="38" rx="8" fill="#46c98a" fill-opacity="0.15"/>
 <text x="44" y="210" fill="#46c98a" font-size="15" font-weight="700">✓ Correct</text>
 <text x="140" y="210" fill="#46c98a" font-size="14">all 8 test vectors match</text>
-<text x="556" y="210" fill="#69727f" font-size="13" text-anchor="end">72 problems</text>
+<text x="556" y="210" fill="#69727f" font-size="13" text-anchor="end">76 problems</text>
 <line x1="70.0" y1="240" x2="70.0" y2="364" stroke="#222a36"/>
 <line x1="133.2" y1="240" x2="133.2" y2="364" stroke="#222a36"/>
 <line x1="196.5" y1="240" x2="196.5" y2="364" stroke="#222a36"/>

@@ -90,13 +90,14 @@ const SECTIONS = [
     { id: 'vectors', title: 'Vectors' },
     { id: 'hier', title: 'Entities and instances' },
     { id: 'comb', title: 'Combinational processes' },
-    { id: 'clocked', title: 'Clocked logic' },
+    { id: 'clocked', title: 'Sequential logic' },
     { id: 'fsm', title: 'State machines' },
     { id: 'more', title: 'Selection, loops and generate' },
     { id: 'numeric', title: 'Numbers and arithmetic' },
     { id: 'types', title: 'Types, functions and packages' },
     { id: 'mem', title: 'Memories' },
     { id: 'rtl', title: 'Register-transfer design' },
+    { id: 'tb', title: 'Testbenches' },
     { id: 'next', title: 'Going further' }
 ];
 
@@ -2348,6 +2349,429 @@ busy <= active;`,
             return s.n === 9 ? { on: false } : { on: true, sh: (1n << 9n) | (s.sh >> 1n), n: s.n + 1 };
         }
     }
+});
+
+/* =================================================================== tb */
+// testbench exercises: the testbench must accept the correct design (dut) and report an
+// error for every broken copy (bugs); all copies have the same entity
+const MAJ_ENT = `${H}
+entity majority3 is
+  port (a, b, c : in std_logic; y : out std_logic);
+end entity;
+`;
+const majArch = body => `${MAJ_ENT}
+architecture rtl of majority3 is
+begin
+  ${body}
+end architecture;
+`;
+add({
+    id: 'tb_majority', sec: 'tb', tb: true, title: 'Your first testbench',
+    body: `The exercises of this chapter turn the tables: the design is given, and you write the testbench. Behind the scenes, the checker also has a few **broken copies** of the design, with the kind of bugs people really make. Your testbench passes when it reports no error for the working design, and at least one error, with {assert ... severity error}, for every broken copy.
+
+The design is the majority vote of chapter 2:
+
+~~~
+entity majority3 is
+  port (a, b, c : in std_logic; y : out std_logic);
+end entity;
+
+architecture rtl of majority3 is
+begin
+  y <= (a and b) or (a and c) or (b and c);
+end architecture;
+~~~
+
+The template drives one input combination and checks it. Test all eight. One of the broken copies is wrong for a single combination only, so nothing less than all eight catches it.
+
+A loop keeps the testbench short: {to_unsigned(i, 3)} turns the loop counter into three bits, and a variable can hold the expected output.`,
+    ports: [],
+    dut: majArch('y <= (a and b) or (a and c) or (b and c);'),
+    bugs: [
+        { title: 'Broken 1: an AND of all three inputs', code: majArch('y <= a and b and c;') },
+        { title: 'Broken 2: the term a and c is missing', code: majArch('y <= (a and b) or (b and c);') },
+        { title: 'Broken 3: an OR of all three inputs', code: majArch('y <= a or b or c;') }
+    ],
+    template: `${HN}
+entity tb is
+end entity;
+
+architecture sim of tb is
+  signal a, b, c, y : std_logic;
+begin
+  dut: entity work.majority3 port map (a => a, b => b, c => c, y => y);
+
+  process
+  begin
+    a <= '0'; b <= '0'; c <= '0';
+    wait for 10 ns;
+    assert y = '0' report "000 should give 0" severity error;
+
+    -- test the other seven combinations
+
+    std.env.finish;
+  end process;
+end architecture;
+`,
+    solution: `${HN}
+entity tb is
+end entity;
+
+architecture sim of tb is
+  signal a, b, c, y : std_logic;
+begin
+  dut: entity work.majority3 port map (a => a, b => b, c => c, y => y);
+
+  process
+    variable v    : unsigned(2 downto 0);
+    variable want : std_logic;
+  begin
+    for i in 0 to 7 loop
+      v := to_unsigned(i, 3);
+      a <= v(2); b <= v(1); c <= v(0);
+      wait for 10 ns;
+      if (v(2) and v(1)) = '1' or (v(2) and v(0)) = '1' or (v(1) and v(0)) = '1' then
+        want := '1';
+      else
+        want := '0';
+      end if;
+      assert y = want
+        report "abc = " & to_string(v) & ": y is " & to_string(y) & ", expected " & to_string(want)
+        severity error;
+    end loop;
+    report "all 8 combinations tested";
+    std.env.finish;
+  end process;
+end architecture;
+`
+});
+
+const ADD_ENT = `${HN}
+entity adder4 is
+  port (
+    a, b : in  std_logic_vector(3 downto 0);
+    s    : out std_logic_vector(4 downto 0)
+  );
+end entity;
+`;
+const addArch = body => `${ADD_ENT}
+architecture rtl of adder4 is
+begin
+${body}
+end architecture;
+`;
+add({
+    id: 'tb_adder', sec: 'tb', tb: true, title: 'Testing every input: an adder',
+    body: `A 4-bit adder has 256 input combinations, few enough to try them all. That is the strongest test there is, and for small combinational blocks it is the usual one.
+
+~~~
+entity adder4 is
+  port (
+    a, b : in  std_logic_vector(3 downto 0);
+    s    : out std_logic_vector(4 downto 0)      -- a + b, with the carry
+  );
+end entity;
+~~~
+
+Write a testbench that applies every pair of {a} and {b} and checks {s} against the sum, which the testbench can compute with integers: two nested loops, {to_unsigned} to drive the inputs, and {to_integer(unsigned(s))} to read the result.
+
+Report the failing inputs in the message, so that whoever reads it can start debugging right away: {"3 + 14 gives 1"} says much more than {"wrong sum"}.`,
+    ports: [],
+    dut: addArch('  s <= std_logic_vector(resize(unsigned(a), 5) + resize(unsigned(b), 5));'),
+    bugs: [
+        { title: 'Broken 1: the carry out is lost', code: addArch("  s <= '0' & std_logic_vector(unsigned(a) + unsigned(b));") },
+        { title: 'Broken 2: no carry from bit 1 to bit 2', code: addArch('  s(1 downto 0) <= std_logic_vector(unsigned(a(1 downto 0)) + unsigned(b(1 downto 0)));\n  s(4 downto 2) <= std_logic_vector(resize(unsigned(a(3 downto 2)), 3) + resize(unsigned(b(3 downto 2)), 3));') },
+        { title: 'Broken 3: the inputs are extended as signed numbers', code: addArch('  s <= std_logic_vector(resize(signed(a), 5) + resize(signed(b), 5));') }
+    ],
+    template: `${HN}
+entity tb is
+end entity;
+
+architecture sim of tb is
+  signal a, b : std_logic_vector(3 downto 0);
+  signal s    : std_logic_vector(4 downto 0);
+begin
+  dut: entity work.adder4 port map (a => a, b => b, s => s);
+
+  process
+  begin
+    a <= "0001"; b <= "0001";
+    wait for 10 ns;
+    assert s = "00010" report "1 + 1 should give 2" severity error;
+
+    -- try all 256 combinations
+
+    std.env.finish;
+  end process;
+end architecture;
+`,
+    solution: `${HN}
+entity tb is
+end entity;
+
+architecture sim of tb is
+  signal a, b : std_logic_vector(3 downto 0);
+  signal s    : std_logic_vector(4 downto 0);
+begin
+  dut: entity work.adder4 port map (a => a, b => b, s => s);
+
+  process
+  begin
+    for i in 0 to 15 loop
+      for j in 0 to 15 loop
+        a <= std_logic_vector(to_unsigned(i, 4));
+        b <= std_logic_vector(to_unsigned(j, 4));
+        wait for 10 ns;
+        assert to_integer(unsigned(s)) = i + j
+          report integer'image(i) & " + " & integer'image(j) & " gives " & integer'image(to_integer(unsigned(s)))
+          severity error;
+      end loop;
+    end loop;
+    report "all 256 sums tested";
+    std.env.finish;
+  end process;
+end architecture;
+`
+});
+
+const CNT_ENT = `${HN}
+entity counter4 is
+  port (
+    clk, reset, en : in  std_logic;
+    q              : out std_logic_vector(3 downto 0)
+  );
+end entity;
+`;
+const cntArch = body => `${CNT_ENT}
+architecture rtl of counter4 is
+  signal count : unsigned(3 downto 0);
+begin
+  process(clk)
+  begin
+    if rising_edge(clk) then
+${body}
+    end if;
+  end process;
+
+  q <= std_logic_vector(count);
+end architecture;
+`;
+add({
+    id: 'tb_counter', sec: 'tb', tb: true, title: 'Clocks and resets: a counter',
+    body: `Clocked designs need a clock in the testbench, and checks at the right moments. This counter counts the rising edges of {clk} while {en} is {'1'}, wraps from 15 to 0, and {reset} (synchronous) sets it to 0, whatever {en} is:
+
+~~~
+process(clk)
+begin
+  if rising_edge(clk) then
+    if reset = '1' then
+      count <= (others => '0');
+    elsif en = '1' then
+      count <= count + 1;
+    end if;
+  end if;
+end process;
+q <= std_logic_vector(count);
+~~~
+
+Test everything the description promises: counting, holding while {en} is {'0'}, the wrap from 15 to 0, and a reset in the middle of counting, also while {en} is {'0'}.
+
+A good way to check a clocked design is a **model**: a variable in the testbench that does what the design should do at each edge. After every edge, wait a moment for the outputs to settle, and compare. Change the inputs before an edge, never exactly at it.`,
+    ports: [],
+    dut: cntArch("      if reset = '1' then\n        count <= (others => '0');\n      elsif en = '1' then\n        count <= count + 1;\n      end if;"),
+    bugs: [
+        { title: "Broken 1: en is ignored", code: cntArch("      if reset = '1' then\n        count <= (others => '0');\n      else\n        count <= count + 1;\n      end if;") },
+        { title: 'Broken 2: it counts to 9 and starts over', code: cntArch("      if reset = '1' then\n        count <= (others => '0');\n      elsif en = '1' then\n        if count = 9 then\n          count <= (others => '0');\n        else\n          count <= count + 1;\n        end if;\n      end if;") },
+        { title: "Broken 3: reset works only while en is '1'", code: cntArch("      if en = '1' then\n        if reset = '1' then\n          count <= (others => '0');\n        else\n          count <= count + 1;\n        end if;\n      end if;") }
+    ],
+    template: `${HN}
+entity tb is
+end entity;
+
+architecture sim of tb is
+  signal clk   : std_logic := '0';
+  signal reset : std_logic := '1';
+  signal en    : std_logic := '1';
+  signal q     : std_logic_vector(3 downto 0);
+begin
+  clk <= not clk after 5 ns;
+
+  dut: entity work.counter4 port map (clk => clk, reset => reset, en => en, q => q);
+
+  process
+  begin
+    wait until rising_edge(clk);      -- the reset takes effect at this edge
+    reset <= '0';
+    wait until rising_edge(clk);
+    wait for 1 ns;
+    assert q = "0001" report "q should be 1 after one count" severity error;
+
+    -- test counting, holding while en = '0', the wrap from 15 to 0,
+    -- and a reset while en = '0'
+
+    std.env.finish;
+  end process;
+end architecture;
+`,
+    solution: `${HN}
+entity tb is
+end entity;
+
+architecture sim of tb is
+  signal clk   : std_logic := '0';
+  signal reset : std_logic := '1';
+  signal en    : std_logic := '1';
+  signal q     : std_logic_vector(3 downto 0);
+begin
+  clk <= not clk after 5 ns;
+
+  dut: entity work.counter4 port map (clk => clk, reset => reset, en => en, q => q);
+
+  process
+    variable expect : natural := 0;
+  begin
+    wait until rising_edge(clk);      -- the reset takes effect at this edge
+    reset <= '0';
+    for i in 1 to 40 loop
+      if i = 21 then en <= '0'; end if;                  -- hold for five edges
+      if i = 26 then en <= '1'; end if;
+      if i = 31 then en <= '0'; reset <= '1'; end if;    -- a reset while en = '0'
+      if i = 32 then en <= '1'; reset <= '0'; end if;
+      wait until rising_edge(clk);
+      -- the model: what the counter must do at this edge
+      if reset = '1' then
+        expect := 0;
+      elsif en = '1' then
+        expect := (expect + 1) mod 16;
+      end if;
+      wait for 1 ns;
+      assert to_integer(unsigned(q)) = expect
+        report "after edge " & integer'image(i) & ": q is " & to_string(q) & ", expected " & integer'image(expect)
+        severity error;
+    end loop;
+    report "40 edges tested";
+    std.env.finish;
+  end process;
+end architecture;
+`
+});
+
+const DET_ENT = `${H}
+entity detect1011 is
+  port (clk, reset, din : in std_logic; found : out std_logic);
+end entity;
+`;
+const detArch = (on101, extra) => `${DET_ENT}
+architecture rtl of detect1011 is
+  type state_t is (s0, s1, s10, s101);
+  signal state : state_t;${extra ? '\n  signal found_r : std_logic;' : ''}
+begin
+  process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        state <= s0;
+      else
+        case state is
+          when s0   => if din = '1' then state <= s1;   else state <= s0;  end if;
+          when s1   => if din = '1' then state <= s1;   else state <= s10; end if;
+          when s10  => if din = '1' then state <= s101; else state <= s0;  end if;
+          when s101 => ${on101}
+        end case;
+      end if;${extra ? "\n      if state = s101 and din = '1' then found_r <= '1'; else found_r <= '0'; end if;" : ''}
+    end if;
+  end process;
+
+  ${extra ? 'found <= found_r;' : "found <= '1' when state = s101 and din = '1' else '0';"}
+end architecture;
+`;
+const DET_OK = "if din = '1' then state <= s1;   else state <= s10; end if;";
+add({
+    id: 'tb_detector', sec: 'tb', tb: true, title: 'Testing a state machine',
+    body: `The design is the Mealy detector of chapter 7: {found} is {'1'} in the clock cycle that brings the last bit of {1011} on {din}, and matches may overlap, so {1011011} holds two of them.
+
+~~~
+entity detect1011 is
+  port (clk, reset, din : in std_logic; found : out std_logic);
+end entity;
+~~~
+
+A state machine is tested with **sequences**, chosen so that every arrow of its state diagram is used: the plain pattern, overlapping patterns, and patterns that break off and start again. Keep the bits in a constant, {constant BITS : std_logic_vector(0 to 23) := "...";}, and send one per clock cycle.
+
+The expected output follows from the history: keep the last three bits in a variable, and {found} must be {'1'} exactly when they and the current bit make {1011}. {found} is a Mealy output, so check it in the middle of the clock cycle, after {din} has changed and before the next edge; {wait until falling_edge(clk);} gets you there.`,
+    ports: [],
+    dut: detArch(DET_OK, false),
+    bugs: [
+        { title: 'Broken 1: after a match it starts from nothing', code: detArch("if din = '1' then state <= s0;   else state <= s10; end if;", false) },
+        { title: 'Broken 2: found comes one clock cycle late', code: detArch(DET_OK, true) },
+        { title: 'Broken 3: after 1010 it forgets the 10', code: detArch("if din = '1' then state <= s1;   else state <= s0;  end if;", false) }
+    ],
+    template: `${H}
+entity tb is
+end entity;
+
+architecture sim of tb is
+  signal clk   : std_logic := '0';
+  signal reset : std_logic := '1';
+  signal din   : std_logic := '0';
+  signal found : std_logic;
+begin
+  clk <= not clk after 5 ns;
+
+  dut: entity work.detect1011 port map (clk => clk, reset => reset, din => din, found => found);
+
+  process
+  begin
+    wait until rising_edge(clk);      -- the reset takes effect at this edge
+    reset <= '0';
+
+    -- send bits on din, one per clock cycle, and check found in each cycle
+
+    std.env.finish;
+  end process;
+end architecture;
+`,
+    solution: `${H}
+entity tb is
+end entity;
+
+architecture sim of tb is
+  signal clk   : std_logic := '0';
+  signal reset : std_logic := '1';
+  signal din   : std_logic := '0';
+  signal found : std_logic;
+begin
+  clk <= not clk after 5 ns;
+
+  dut: entity work.detect1011 port map (clk => clk, reset => reset, din => din, found => found);
+
+  process
+    -- 1011011 overlaps; in 101011, the 10 after 101 must not be forgotten
+    constant BITS : std_logic_vector(0 to 23) := "101101100101011001011110";
+    variable hist : std_logic_vector(2 downto 0) := "000";
+    variable want : std_logic;
+  begin
+    wait until rising_edge(clk);      -- the reset takes effect at this edge
+    reset <= '0';
+    for i in BITS'range loop
+      din <= BITS(i);
+      wait until falling_edge(clk);   -- the middle of the cycle
+      if hist & BITS(i) = "1011" then
+        want := '1';
+      else
+        want := '0';
+      end if;
+      assert found = want
+        report "bit " & integer'image(i) & ": found is " & to_string(found) & ", expected " & to_string(want)
+        severity error;
+      hist := hist(1 downto 0) & BITS(i);
+      wait until rising_edge(clk);
+    end loop;
+    report "24 bits tested";
+    std.env.finish;
+  end process;
+end architecture;
+`
 });
 
 G.VHDLProblems = { LIB, SECTIONS, PROBLEMS: P };
