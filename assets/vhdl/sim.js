@@ -1597,18 +1597,37 @@ class Design {
             });
         }
         const get = this.valueGetter(p, at);
-        const f = E => {
-            const a = get(E), s = r.f(E), n = rlen(s);
-            if (n === 0) return { l: s.l, dir: s.dir, v: [] };
+        // a variable has its declared range, so a constant slice of it is checked now, as for signals
+        if (p.cls === 'var' && r.st && t.rng && !t.rngF && rlen(r.sv) > 0) {
+            const rng = t.rng, s = r.sv, len = rlen(rng);
+            if (s.dir !== rng.dir) fail(`'${p.name}' is declared ${rng.l} ${rng.dir} ${rng.r}, so its slices must use '${rng.dir}' too: ${p.name}(${s.r} ${rng.dir} ${s.l})`, at);
+            for (const b of [s.l, s.r]) { const q = rng.dir === 'downto' ? rng.l - b : b - rng.l; if (!(q >= 0 && q < len)) fail(`the slice ${s.l} ${s.dir} ${s.r} goes outside ${rng.l} ${rng.dir} ${rng.r} of '${p.name}'`, at); }
+        }
+        const leftPos = (a, s) => {
             if (s.dir !== a.dir) fail(`slice direction '${s.dir}' does not match the '${a.dir}' range of '${p.name}'`, at);
             const q0 = vPos(a, s.l, at);
             vPos(a, s.r, at);
+            return q0;
+        };
+        const f = E => {
+            const a = get(E), s = r.f(E), n = rlen(s);
+            if (n === 0) return { l: s.l, dir: s.dir, v: [] };
+            const q0 = leftPos(a, s);
             return { l: s.l, dir: s.dir, v: a.v.slice(q0, q0 + n) };
         };
         const st = r.st ? constrain(t, r.sv) : sub(t, { rng: null });
         const x = { t: st, f, st: false };
         if (p.cls === 'var') {
-            return { cls: 'var', t: st, name: `${p.name}(…)`, get: f, set: (E, v) => { const a = get(E), s = r.f(E), n = rlen(s); if (!n) return; const q0 = vPos(a, s.l, at); for (let k = 0; k < n; k++) a.v[q0 + k] = v.v[k]; } };
+            return {
+                cls: 'var', t: st, name: `${p.name}(…)`, get: f,
+                set: (E, v) => {
+                    const a = get(E), s = r.f(E), n = rlen(s);
+                    if (!n) return;
+                    const q0 = leftPos(a, s);
+                    if (v.v.length !== n) fail(`width mismatch: '${p.name}(${s.l} ${s.dir} ${s.r})' has ${n} elements, but the value has ${v.v.length}`, at);
+                    for (let k = 0; k < n; k++) a.v[q0 + k] = v.v[k];
+                }
+            };
         }
         return { cls: 'val', x, name: `${p.name}(…)` };
     }
@@ -1771,6 +1790,7 @@ class Design {
         if (rng) { L = rng.l; D = rng.dir; N = rlen(rng); }
         else if (!named) { L = idxLo(want); D = 'to'; N = items.length; }
         else {
+            if (hasOthers && want.opCtx) fail(`(others => ...) cannot be an operand of '${want.opCtx}': there its width is unknown. Write the value out, e.g. "00000000" or x"00"${want.opCtx === '=' || want.opCtx === '/=' ? ', or compare differently, e.g. unsigned(v) = 0' : ''}`, n.at);
             if (hasOthers) fail("the size of (others => ...) is unknown here; give it a type with a size, e.g. std_logic_vector'(7 downto 0 => '0')", n.at);
             const idxs = [];
             let dirHint = null;
@@ -1992,12 +2012,14 @@ class Design {
     }
     binary(n, want, sc) {
         const op = n.op, at = n.at;
+        // an operand of an operator gets no size from the other side: (others => ...) is an error there
+        const open = (node, T) => (node.k === 'agg' && isArr(T) ? Object.assign(sub(T, { rng: null }), { opCtx: op }) : T);
         if (LOGICAL.has(op)) {
-            const [a, b] = this.pairCtx(n, sc, want, (node, T) => (isArr(T) && node.k === 'char' ? T.elem : T));
+            const [a, b] = this.pairCtx(n, sc, want, (node, T) => (isArr(T) && node.k === 'char' ? T.elem : open(node, T)));
             return this.logical(op, a, b, at);
         }
         if (RELOPS.has(op)) {
-            const [a, b] = this.pairCtx(n, sc, null, (node, T) => (isNum(T) && node.k === 'int' ? INTEGER : T));
+            const [a, b] = this.pairCtx(n, sc, null, (node, T) => (isNum(T) && node.k === 'int' ? INTEGER : open(node, T)));
             return this.relational(op, a, b, at);
         }
         if (op === '&') {
