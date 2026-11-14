@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380" role="img" aria-labelledby="t d">
+<title id="t">A VHDL problem, solved</title>
+<desc id="d">An editor holding the architecture y &lt;= (a and b) or c, the checker reporting that all 8 test vectors match, and the waveform of a, b, c and y.</desc>
+<rect width="600" height="380" fill="#111318"/>
+<g font-family="ui-monospace,Cascadia Code,JetBrains Mono,Menlo,Consolas,monospace" style="font-variant-ligatures:none">
+<rect x="24" y="22" width="552" height="150" rx="10" fill="#171b22" stroke="#2a3140"/>
+<line x1="62" y1="22" x2="62" y2="172" stroke="#2a3140"/>
+<text x="48" y="58" fill="#69727f" font-size="13" text-anchor="end">1</text>
+<text x="76" y="58" fill="#f59410" font-size="14">architecture</text>
+<text x="177.4" y="58" fill="#e8ecf2" font-size="14"> rtl </text>
+<text x="219.6" y="58" fill="#f59410" font-size="14">of</text>
+<text x="236.5" y="58" fill="#e8ecf2" font-size="14"> top_module </text>
+<text x="337.9" y="58" fill="#f59410" font-size="14">is</text>
+<text x="48" y="88" fill="#69727f" font-size="13" text-anchor="end">2</text>
+<text x="76" y="88" fill="#f59410" font-size="14">begin</text>
+<text x="48" y="118" fill="#69727f" font-size="13" text-anchor="end">3</text>
+<text x="76" y="118" fill="#e8ecf2" font-size="14">  y </text>
+<text x="109.8" y="118" fill="#98a1af" font-size="14">&lt;=</text>
+<text x="126.7" y="118" fill="#e8ecf2" font-size="14"> (a </text>
+<text x="160.5" y="118" fill="#f59410" font-size="14">and</text>
+<text x="185.8" y="118" fill="#e8ecf2" font-size="14"> b) </text>
+<text x="219.6" y="118" fill="#f59410" font-size="14">or</text>
+<text x="236.5" y="118" fill="#e8ecf2" font-size="14"> c;</text>
+<text x="48" y="148" fill="#69727f" font-size="13" text-anchor="end">4</text>
+<text x="76" y="148" fill="#f59410" font-size="14">end</text>
+<text x="101.3" y="148" fill="#e8ecf2" font-size="14"> architecture;</text>
+<rect x="24" y="186" width="552" height="38" rx="8" fill="#46c98a" fill-opacity="0.15"/>
+<text x="44" y="210" fill="#46c98a" font-size="15" font-weight="700">✓ Correct</text>
+<text x="140" y="210" fill="#46c98a" font-size="14">all 8 test vectors match</text>
+<text x="556" y="210" fill="#69727f" font-size="13" text-anchor="end">57 problems</text>
+<line x1="70.0" y1="240" x2="70.0" y2="364" stroke="#222a36"/>
+<line x1="133.2" y1="240" x2="133.2" y2="364" stroke="#222a36"/>
+<line x1="196.5" y1="240" x2="196.5" y2="364" stroke="#222a36"/>
+<line x1="259.8" y1="240" x2="259.8" y2="364" stroke="#222a36"/>
+<line x1="323.0" y1="240" x2="323.0" y2="364" stroke="#222a36"/>
+<line x1="386.2" y1="240" x2="386.2" y2="364" stroke="#222a36"/>
+<line x1="449.5" y1="240" x2="449.5" y2="364" stroke="#222a36"/>
+<line x1="512.8" y1="240" x2="512.8" y2="364" stroke="#222a36"/>
+<line x1="576.0" y1="240" x2="576.0" y2="364" stroke="#222a36"/>
+<text x="44" y="259" fill="#98a1af" font-size="14" text-anchor="end">a</text>
+<path d="M70.0 263 L133.2 263 L133.2 263 L196.5 263 L196.5 263 L259.8 263 L259.8 263 L323.0 263 L323.0 263 L323.0 245 L386.2 245 L386.2 245 L449.5 245 L449.5 245 L512.8 245 L512.8 245 L576.0 245" fill="none" stroke="#66adf0" stroke-width="2" stroke-linejoin="round"/>
+<text x="44" y="289" fill="#98a1af" font-size="14" text-anchor="end">b</text>
+<path d="M70.0 293 L133.2 293 L133.2 293 L196.5 293 L196.5 293 L196.5 275 L259.8 275 L259.8 275 L323.0 275 L323.0 275 L323.0 293 L386.2 293 L386.2 293 L449.5 293 L449.5 293 L449.5 275 L512.8 275 L512.8 275 L576.0 275" fill="none" stroke="#66adf0" stroke-width="2" stroke-linejoin="round"/>
+<text x="44" y="319" fill="#98a1af" font-size="14" text-anchor="end">c</text>
+<path d="M70.0 323 L133.2 323 L133.2 323 L133.2 305 L196.5 305 L196.5 305 L196.5 323 L259.8 323 L259.8 323 L259.8 305 L323.0 305 L323.0 305 L323.0 323 L386.2 323 L386.2 323 L386.2 305 L449.5 305 L449.5 305 L449.5 323 L512.8 323 L512.8 323 L512.8 305 L576.0 305" fill="none" stroke="#66adf0" stroke-width="2" stroke-linejoin="round"/>
+<text x="44" y="349" fill="#e8ecf2" font-size="14" font-weight="700" text-anchor="end">y</text>
+<path d="M70.0 353 L133.2 353 L133.2 353 L133.2 335 L196.5 335 L196.5 335 L196.5 353 L259.8 353 L259.8 353 L259.8 335 L323.0 335 L323.0 335 L323.0 353 L386.2 353 L386.2 353 L386.2 335 L449.5 335 L449.5 335 L512.8 335 L512.8 335 L576.0 335" fill="none" stroke="#f59410" stroke-width="2" stroke-linejoin="round"/>
+</g>
+</svg>
