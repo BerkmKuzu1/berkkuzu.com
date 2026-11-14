@@ -159,6 +159,13 @@ function simulate(spec, text) {
     if (!top) return { ok: false, phase: 'compile', errors: [{ line: 0, msg: 'There is no entity to simulate.' }], warnings: [] };
     const d = VHDL.compile([{ name: 'example', text }], top);
     if (!d.ok) return { ok: false, phase: 'compile', errors: d.errors, warnings: d.warnings || [] };
+    if (spec.tb) {
+        // a testbench drives itself: run it in time
+        let r;
+        try { r = d.runTB(spec.limit || TB_LIMIT); }
+        catch (e) { const w = e.where || { line: 0, msg: e.message }; return { ok: false, phase: 'sim', errors: [w], warnings: d.warnings, messages: d.messages() }; }
+        return { ok: true, tb: true, reason: r.reason, end: r.end, wave: r.wave, warnings: d.warnings, messages: d.messages() };
+    }
     const trace = [];
     let k = 0;
     const stop = msg => { const e = new Error(msg); e.where = { line: 0, msg }; throw e; };
@@ -188,5 +195,33 @@ function simulate(spec, text) {
     return { ok: true, phase: 'done', ports: d.ports, trace, warnings: d.warnings, messages: d.messages() };
 }
 
-G.VHDLCheck = { rng, toStr, fromStr, entityText, template, solution, steps, run, portDecl, simulate, stepPairs, topOf };
+/* ---------- a testbench exercise: the testbench must accept the correct design
+   and report an error (assert ... severity error or failure) for every broken copy */
+const TB_LIMIT = 1e12;            // 1 ms of simulated time, in femtoseconds
+function runTB(prob, text) {
+    const variants = [{ title: 'The correct design', code: prob.dut, good: true }].concat(prob.bugs.map(b => ({ title: b.title, code: b.code, good: false })));
+    const top = topOf(text) || 'tb';
+    const results = [];
+    let warnings = [];
+    for (const v of variants) {
+        const d = VHDL.compile([{ name: 'provided', text: v.code }, { name: 'yours', text }], top);
+        const fix = list => (list || []).map(e => Object.assign({}, e, { mine: e.fileIdx === 1 }));
+        if (!d.ok) return { ok: false, phase: 'compile', errors: fix(d.errors), warnings: fix(d.warnings) };
+        if (v.good) warnings = fix(d.warnings);
+        if (d.ports.length) return { ok: false, phase: 'interface', errors: [{ line: 0, msg: `A testbench has no ports, but '${top}' has ${d.ports.length}: it should start with 'entity ${top} is end entity;'.`, mine: true }], warnings };
+        let r;
+        try { r = d.runTB(prob.limit || TB_LIMIT); }
+        catch (e) {
+            const w = e.where || { line: 0, msg: e.message, fileIdx: 1 };
+            return { ok: false, phase: 'sim', errors: fix([w]).map(x => Object.assign(x, { msg: `${x.msg} (with ${v.good ? 'the correct design' : `broken design ${results.length}`})` })), warnings };
+        }
+        const msgs = fix(d.messages());
+        const bad = msgs.filter(m => m.sev === 'error' || m.sev === 'failure');
+        results.push({ title: v.title, good: v.good, caught: bad.length > 0, first: bad[0] || null, reason: r.reason, end: r.end, messages: msgs, wave: r.wave });
+    }
+    const ok = !results[0].caught && results.slice(1).every(x => x.caught);
+    return { ok, phase: 'done', results, warnings, total: results.length - 1, bad: results.slice(1).filter(x => !x.caught).length + (results[0].caught ? 1 : 0) };
+}
+
+G.VHDLCheck = { rng, toStr, fromStr, entityText, template, solution, steps, run, runTB, portDecl, simulate, stepPairs, topOf, TB_LIMIT };
 })(typeof window !== 'undefined' ? window : globalThis);

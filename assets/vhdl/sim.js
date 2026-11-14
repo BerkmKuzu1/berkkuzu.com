@@ -543,23 +543,33 @@ class Parser {
         return a;
     }
     delayMech() {
-        if (this.accept('kw', 'transport') || this.accept('kw', 'inertial')) return;
-        if (this.accept('kw', 'reject')) { this.expr(); this.expect('kw', 'inertial'); }
+        if (this.accept('kw', 'transport')) return 'transport';
+        if (this.accept('kw', 'inertial')) return 'inertial';
+        if (this.accept('kw', 'reject')) { this.expr(); this.expect('kw', 'inertial'); return 'inertial'; }
         if (this.accept('kw', 'guarded')) fail('guarded assignments are not supported here', this.cur.at);
+        return 'inertial';
     }
+    // a value, or several values in time: v1 [after t1] {, v2 after t2}
     waveform() {
         if (this.accept('kw', 'unaffected')) return { k: 'unaffected' };
+        const at = this.cur.at;
         const e = this.expr();
-        if (this.accept('kw', 'after')) this.expr();               // delays are ignored
-        if (this.op(',')) fail('waveforms with several elements are not supported here', this.cur.at);
-        return e;
+        const delay = this.accept('kw', 'after') ? this.expr() : null;
+        if (!delay && !this.op(',')) return e;
+        const els = [{ val: e, delay }];
+        while (this.accept('op', ',')) {
+            const v = this.expr();
+            if (!this.accept('kw', 'after')) fail("each further value of a waveform needs a time: a <= '1', '0' after 10 ns;", this.cur.at);
+            els.push({ val: v, delay: this.expr() });
+        }
+        return { k: 'wave', els, at };
     }
     condAssign(label, target, at, conc) {
-        this.delayMech();
+        const mech = this.delayMech();
         const first = this.waveform();
         if (!this.kw('when')) {
             this.expect('op', ';', "';'");
-            return { k: conc ? 'casgn' : 'sasgn', label, target, val: first, at };
+            return { k: conc ? 'casgn' : 'sasgn', label, target, val: first, mech, at };
         }
         const alts = [];
         let val = first;
@@ -572,7 +582,7 @@ class Parser {
         }
         if (val !== null) alts.push({ val, cond: null });
         this.expect('op', ';', "';' (or 'else')");
-        return { k: conc ? 'casgn' : 'sasgn', label, target, alts, at };
+        return { k: conc ? 'casgn' : 'sasgn', label, target, alts, mech, at };
     }
     selected(label, at, conc) {
         this.expect('kw', 'with');
@@ -581,7 +591,7 @@ class Parser {
         const matching = !!this.accept('op', '?');
         const target = this.target();
         if (!this.accept('op', '<=')) this.err("expected '<='");
-        this.delayMech();
+        const mech = this.delayMech();
         const alts = [];
         do {
             const val = this.waveform();
@@ -590,7 +600,7 @@ class Parser {
         } while (this.accept('op', ','));
         if (!this.op(';')) this.err("expected ',' between the choices or ';' after the last one");
         this.p++;
-        return { k: conc ? 'csel' : 'ssel', label, sel, target, alts, matching, at };
+        return { k: conc ? 'csel' : 'ssel', label, sel, target, alts, matching, mech, at };
     }
     choices() {
         const cs = [];
@@ -651,7 +661,15 @@ class Parser {
                     return { k: 'report', report, severity, at };
                 }
                 case 'with': return this.selected(label, at, false);
-                case 'wait': fail('wait statements are not supported here: give the process a sensitivity list, e.g. process(all) or process(clk)', at);
+                case 'wait': {
+                    this.p++;
+                    let on = null, until = null, forT = null;
+                    if (this.accept('kw', 'on')) { on = []; do { on.push(this.name()); } while (this.accept('op', ',')); }
+                    if (this.accept('kw', 'until')) until = this.expr();
+                    if (this.accept('kw', 'for')) forT = this.expr();
+                    this.expect('op', ';', "';' after the wait statement");
+                    return { k: 'wait', on, until, forT, at };
+                }
                 case 'process': fail('a process cannot be placed inside another process', at);
                 case 'elsif': case 'else': fail(`'${c.v}' without a matching 'if'`, at);
                 case 'when': fail("'when' without a matching 'case'", at);
@@ -786,7 +804,7 @@ class Parser {
         switch (c.t) {
             case 'int': case 'real':
                 this.p++;
-                if (this.cur.t === 'id' && PHYS.has(this.cur.v)) { this.p++; return { k: 'phys', v: c.v, at }; }
+                if (this.cur.t === 'id' && PHYS.has(this.cur.v)) { const unit = this.cur.v; this.p++; return { k: 'phys', v: c.v, unit, at }; }
                 return { k: c.t, v: c.v, raw: c.raw, at };
             case 'char': this.p++; return { k: 'char', v: c.v, at };
             case 'str': this.p++; return { k: 'str', v: c.v, at };
@@ -897,6 +915,11 @@ const POSITIVE = sub(INTEGER, { name: 'positive', lo: 1 });
 const UNIV = sub(INTEGER, { name: 'integer', univ: true });
 const TIME = { k: 'time', name: 'time' };
 TIME.base = TIME;
+const isTime = t => !!t && t.k === 'time';
+// time values are numbers of femtoseconds
+const UNIT_FS = { fs: 1, ps: 1e3, ns: 1e6, us: 1e9, ms: 1e12, sec: 1e15, min: 6e16, hr: 3.6e18 };
+// the simulation ends a process by throwing this
+class Stop extends Error { constructor(reason) { super(`the simulation was stopped (${reason})`); this.reason = reason; } }
 const SULV = mkArr('std_ulogic_vector', STD_ULOGIC, NATURAL);
 const SLV = sub(SULV, { name: 'std_logic_vector', elem: STD_LOGIC });
 const UNSIGNED = mkArr('unsigned', STD_LOGIC, NATURAL);
@@ -1016,6 +1039,7 @@ function showVal(t, v) {
     return String(v);
 }
 function strOf(t, v) {
+    if (isTime(t)) return `${v} fs`;
     if (isArr(t) && t.base === STRING) return v.v.map(c => String.fromCharCode(c)).join('');
     if (isArr(t) && isEnum(t.elem)) return v.v.map(e => t.elem.lits[e].length === 3 ? t.elem.lits[e][1] : t.elem.lits[e]).join('');
     if (isEnum(t)) return t.lits[v].length === 3 && t.lits[v][0] === "'" ? t.lits[v][1] : t.lits[v];
@@ -1058,13 +1082,20 @@ class Design {
         this.sigs = []; this.procs = []; this.warns = []; this.msgs = [];
         this.cur = null;
         this.delta = 0; this.pending = []; this.extDirty = []; this.iter = 0;
+        this.now = 0; this.timers = []; this.futDrv = new Set(); this.wake = []; this.waitSeq = 0; this.tb = false;
         this.fileNames = [];
         this.std = this.makeStd();
         this.ieee = this.makeIeee();
         this.pkgScopes = new Map();
     }
     warn(msg, at) { if (!this.warns.some(w => w.msg === msg && w.at === at)) this.warns.push({ msg, at }); }
-    message(sev, msg, at) { if (this.msgs.length < 30) this.msgs.push({ sev, msg, at }); if (sev === 'failure') fail(`assertion failure: ${msg}`, at); }
+    message(sev, msg, at) {
+        if (this.msgs.length < (this.tb ? 300 : 30)) this.msgs.push({ sev, msg, at, t: this.now });
+        if (sev === 'failure') {
+            if (this.tb) throw new Stop('failure');      // a testbench stops, as in GHDL
+            fail(`assertion failure: ${msg}`, at);
+        }
+    }
 
     /* ---------- the built-in packages */
     makeStd() {
@@ -1077,6 +1108,37 @@ class Design {
             const x = A.exT(args[0].val, null, sc);
             return { t: STRING, f: E => { const s2 = strOf(x.t, x.f(E)); return { l: 1, dir: 'to', v: [...s2].map(c => c.charCodeAt(0)) }; }, st: false };
         }));
+        // to_hstring and to_ostring (VHDL-2008): a group that is all 'Z' gives Z, any other unknown bit X
+        for (const [nm, bits] of [['to_hstring', 4], ['to_ostring', 3]]) {
+            s.add(nm, builtin(nm, (A, args, want, sc, at) => {
+                A.arity(args, 1, 1, nm, at);
+                const x = A.exT(args[0].val, null, sc);
+                if (!isArr(x.t) || !isEnum(x.t.elem) || !(isLogic(x.t.elem) || x.t.elem.base === BIT)) fail(`${nm} writes a vector of bits as text`, at);
+                const lg = isLogic(x.t.elem), sg = x.t.base === SIGNED;
+                return {
+                    t: STRING, st: false, f: E => {
+                        const v = x.f(E).v.slice();
+                        const pad = sg && v.length ? v[0] : (lg ? 2 : 0);
+                        while (v.length % bits) v.unshift(pad);
+                        let out = '';
+                        for (let i = 0; i < v.length; i += bits) {
+                            const g = v.slice(i, i + bits);
+                            if (!lg) { out += parseInt(g.join(''), 2).toString(16).toUpperCase(); continue; }
+                            if (g.every(e => e === 4)) { out += 'Z'; continue; }
+                            const b = g.map(e => (e === 2 || e === 6 ? 0 : e === 3 || e === 7 ? 1 : -1));
+                            out += b.includes(-1) ? 'X' : parseInt(b.join(''), 2).toString(16).toUpperCase();
+                        }
+                        return { l: 1, dir: 'to', v: [...out].map(c => c.charCodeAt(0)) };
+                    }
+                };
+            }));
+        }
+        s.add('now', builtin('now', (A, args, want, sc, at) => {
+            A.arity(args, 0, 0, 'now', at);
+            return { t: TIME, f: () => A.now, st: false };
+        }));
+        // std.env: finish and stop end the simulation (VHDL-2008)
+        this.env = new Map([['finish', { cls: 'proc', proc: 'finish' }], ['stop', { cls: 'proc', proc: 'stop' }]]);
         for (const nm of ['minimum', 'maximum']) {
             s.add(nm, builtin(nm, (A, args, want, sc, at) => {
                 A.arity(args, 2, 2, nm, at);
@@ -1270,7 +1332,8 @@ class Design {
         }
         if (lib === 'std') {
             if (pkg === 'standard') return this.std.m;
-            fail(`package std.${pkg} is not available here`, at);
+            if (pkg === 'env') return this.env;
+            fail(`package std.${pkg} is not available here${pkg === 'textio' ? ': report and to_string print text' : ''}`, at);
         }
         if (lib === 'work') {
             const pu = this.pkgs.get(pkg);
@@ -1701,7 +1764,7 @@ class Design {
                 }
                 return K(want && isInt(want) && !want.univ ? want.base : UNIV, n.v);
             case 'real': fail('real numbers are not supported here', n.at);
-            case 'phys': return K(TIME, n.v);
+            case 'phys': return K(TIME, Math.round(n.v * UNIT_FS[n.unit]));
             case 'char': return this.charLit(n, want);
             case 'str': case 'bits': return this.strLit(n, want);
             case 'agg': return this.aggregate(n, want, sc);
@@ -1892,6 +1955,10 @@ class Design {
             }
             fail(`the attribute '${a} is not supported on arrays here`, at);
         }
+        if (r.cls === 'type' && isTime(t) && a === 'image') {
+            const x = this.exT(n.arg, t, sc);
+            return this.mk(STRING, E => { const s2 = strOf(t, x.f(E)); return { l: 1, dir: 'to', v: [...s2].map(c => c.charCodeAt(0)) }; }, [x]);
+        }
         if (r.cls === 'type' && (isInt(t) || isEnum(t))) {
             const lo = isInt(t) ? t.lo : 0, hi = isInt(t) ? t.hi : t.lits.length - 1;
             switch (a) {
@@ -1900,7 +1967,12 @@ class Design {
                 case 'right': return K(t, hi);
                 case 'pos': { const x = this.exT(n.arg, t, sc); return this.mk(INTEGER, x.f, [x]); }
                 case 'val': { const x = this.exT(n.arg, INTEGER, sc); return this.mk(t, E => { const v = x.f(E); if (v < lo || v > hi) fail(`${v} is outside ${t.name}`, at); return v; }, [x]); }
-                case 'image': { const x = this.exT(n.arg, t, sc); return this.mk(STRING, E => { const s2 = strOf(t, x.f(E)); return { l: 1, dir: 'to', v: [...s2].map(c => c.charCodeAt(0)) }; }, [x]); }
+                case 'image': {
+                    // like to_string, but a character literal keeps its quotes: std_logic'image('1') is "'1'"
+                    const x = this.exT(n.arg, t, sc);
+                    const img = v => (isEnum(t) ? t.lits[v] : strOf(t, v));
+                    return this.mk(STRING, E => { const s2 = img(x.f(E)); return { l: 1, dir: 'to', v: [...s2].map(c => c.charCodeAt(0)) }; }, [x]);
+                }
                 case 'succ': case 'pred': { const x = this.exT(n.arg, t, sc), d = a === 'succ' ? 1 : -1; return this.mk(t, E => { const v = x.f(E) + d; if (v < lo || v > hi) fail(`'${a} goes past the end of ${t.name}`, at); return v; }, [x]); }
             }
         }
@@ -2121,8 +2193,8 @@ class Design {
                 return cmp(x < y ? -1 : x > y ? 1 : 0) ? 1 : 0;
             }, [a, b]);
         }
-        if (isInt(ta) && isInt(tb)) {
-            if (!ta.univ && !tb.univ && ta.base !== tb.base) this.typeErr(op, a, b, at);
+        if ((isInt(ta) && isInt(tb)) || (isTime(ta) && isTime(tb))) {
+            if (isInt(ta) && !ta.univ && !tb.univ && ta.base !== tb.base) this.typeErr(op, a, b, at);
             return this.mk(BOOLEAN, E => { const x = a.f(E), y = b.f(E); return cmp(x < y ? -1 : x > y ? 1 : 0) ? 1 : 0; }, [a, b]);
         }
         if (ta.base !== tb.base) {
@@ -2176,6 +2248,14 @@ class Design {
     }
     arith(op, a, b, at, sc) {
         const ta = a.t, tb = b.t;
+        if (isTime(ta) || isTime(tb)) {
+            const tt = isTime(ta) && isTime(tb), ti = isTime(ta) && isInt(tb), it = isInt(ta) && isTime(tb);
+            if ((op === '+' || op === '-') && tt) return this.mk(TIME, op === '+' ? E => a.f(E) + b.f(E) : E => a.f(E) - b.f(E), [a, b]);
+            if (op === '*' && (ti || it)) return this.mk(TIME, E => a.f(E) * b.f(E), [a, b]);
+            if (op === '/' && ti) return this.mk(TIME, E => { const y = b.f(E); if (!y) fail('division by zero', at); return Math.trunc(a.f(E) / y); }, [a, b]);
+            if (op === '/' && tt) return this.mk(UNIV, E => { const y = b.f(E); if (!y) fail('division by zero', at); return intChk(Math.trunc(a.f(E) / y), at); }, [a, b]);
+            fail(`'${op}' does not work between ${tname(ta)} and ${tname(tb)}: times add to times, and multiply or divide by integers`, at);
+        }
         if (isInt(ta) && isInt(tb)) {
             if (!ta.univ && !tb.univ && ta.base !== tb.base) this.typeErr(op, a, b, at);
             const t = ta.univ && tb.univ ? UNIV : (ta.univ ? tb.base : ta.base);
@@ -2257,6 +2337,11 @@ class Design {
             }, [x]);
         }
         const x = this.exT(n.e, want, sc);
+        if (isTime(x.t)) {
+            if (op === '-') return this.mk(TIME, E => -x.f(E), [x]);
+            if (op === '+') return x;
+            if (op === 'abs') return this.mk(TIME, E => Math.abs(x.f(E)), [x]);
+        }
         if (isInt(x.t)) {
             if (op === '-') return this.mk(x.t, E => intChk(-x.f(E), at), [x]);
             if (op === '+') return x;
@@ -2371,20 +2456,21 @@ class Design {
                 const r = this.sigTarget(s.target, sc, at);
                 s._sig = r.sig;
                 const what = `'${r.name}'`;
-                if (!s.alts) return this.driveFn(r, this.exT(s.val, r.t, sc), at, what);
+                if (!s.alts) return this.driveNode(r, s.val, sc, at, what, s.mech);
                 const conds = [], acts = [];
                 for (const al of s.alts) {
                     conds.push(al.cond ? this.cond(al.cond, sc) : null);
-                    acts.push(al.val.k === 'unaffected' ? () => {} : this.driveFn(r, this.exT(al.val, r.t, sc), at, what));
+                    acts.push(al.val.k === 'unaffected' ? () => {} : this.driveNode(r, al.val, sc, at, what, s.mech));
                 }
                 return E => { for (let i = 0; i < conds.length; i++) if (!conds[i] || conds[i](E)) { acts[i](E); return; } };
             }
             case 'ssel': {
                 const r = this.sigTarget(s.target, sc, at);
                 s._sig = r.sig;
-                const alts = s.alts.map(al => ({ choices: al.choices, body: [], act: this.driveFn(r, this.exT(al.val, r.t, sc), al.at || at, `'${r.name}'`) }));
+                const alts = s.alts.map(al => ({ choices: al.choices, body: [], act: this.driveNode(r, al.val, sc, al.at || at, `'${r.name}'`, s.mech) }));
                 return this.caseOn(s.sel, alts, s.matching, sc, at, true);
             }
+            case 'wait': fail(this.cur.func ? 'a function cannot wait' : 'a process with a sensitivity list cannot contain wait statements: remove the list, or the waits', at);
             case 'vasgn': {
                 if (!this.cur.proc && !this.cur.func) fail('variables can only be assigned inside a process or a function', at);
                 const r = this.target(s.target, sc);
@@ -2473,7 +2559,147 @@ class Design {
                     D.message(sev ? SEVERITY.lits[sev.f(E)] : (s.k === 'report' ? 'note' : 'error'), text, at);
                 };
             }
-            case 'pcall': fail(`'${s.target.raw || 'this'}' is not a statement: procedures are not supported here`, at);
+            case 'pcall': {
+                const p = this.procOf(s.target, sc);
+                if (p) {
+                    if (this.cur.func) fail(`a function cannot call ${p.proc}`, at);
+                    return () => { throw new Stop(p.proc); };
+                }
+                const nm = (s.target.raw || '').toLowerCase();
+                if (nm === 'finish' || nm === 'stop') fail(`'${nm}' is not visible here: write std.env.${nm}, or add 'use std.env.all;'`, at);
+                fail(`'${s.target.raw || 'this'}' is not a statement: procedures are not supported here`, at);
+            }
+        }
+        fail(`unsupported statement '${s.k}'`, at);
+    }
+    // std.env.finish, std.env.stop, or finish/stop after 'use std.env.all'; a status argument is ignored
+    procOf(n, sc) {
+        const node = n.k === 'call' ? n.pfx : n;
+        let o = null;
+        try { o = this.resolve(node, sc); } catch (e) { if (e instanceof VError) return null; throw e; }
+        return o && o.cls === 'proc' ? o : null;
+    }
+    // a signal assignment; with 'after' or several values, a waveform in time
+    driveNode(r, node, sc, at, what, mech) {
+        if (node.k !== 'wave') return this.driveFn(r, this.exT(node, r.t, sc), at, what);
+        if (r.rngF) fail('a delayed assignment to a slice with changing bounds is not supported here', at);
+        const els = node.els.map(el => {
+            const x = this.exT(el.val, r.t, sc);
+            const d = el.delay ? this.exT(el.delay, TIME, sc) : null;
+            if (d && !isTime(d.t)) fail("the delay after 'after' must be a time, such as 10 ns", el.delay.at);
+            return { x, cv: this.fit(x, r.t, at, what), d };
+        });
+        const sig = r.sig, P = this.cur.proc, D = this, scalar = !isArr(r.t);
+        const off = r.off !== undefined ? (() => r.off) : r.offF;
+        return E => {
+            let prev = -1;
+            const items = els.map((el, k) => {
+                const dl = el.d ? el.d.f(E) : 0;
+                if (dl < 0) fail('a delay cannot be negative', at);
+                if (k && dl <= prev) fail('the times of a waveform must grow from one value to the next', at);
+                prev = dl;
+                const v = el.cv(el.x.f(E));
+                return { d: dl, leaves: scalar ? [v] : flat(v, []) };
+            });
+            D.writeWave(P, sig, off(E), items, mech);
+        };
+    }
+
+    /* ---------- processes that wait: their statements compile to generators */
+    hasWait(list) {
+        for (const s of list) {
+            if (s.k === 'wait') return true;
+            if (s.k === 'if' && (s.branches.some(b => this.hasWait(b.body)) || (s.els && this.hasWait(s.els)))) return true;
+            if (s.k === 'case' && s.alts.some(a => this.hasWait(a.body))) return true;
+            if ((s.k === 'for' || s.k === 'while' || s.k === 'loop') && this.hasWait(s.body)) return true;
+        }
+        return false;
+    }
+    gseq(stmts, sc) {
+        const parts = stmts.map(s => (this.hasWait([s]) ? { g: this.gstmt(s, sc) } : { f: this.stmt(s, sc) }));
+        return function* (E) {
+            for (const p of parts) {
+                const r = p.g ? yield* p.g(E) : p.f(E);
+                if (r) return r;
+            }
+        };
+    }
+    gstmt(s, sc) {
+        const at = s.at, D = this;
+        switch (s.k) {
+            case 'wait': {
+                let sigs = [];
+                if (s.on) sigs = s.on.map(nm => { const r = this.resolve(nm, sc); if (r.cls !== 'sig') fail(`'${nm.raw}' in 'wait on' is not a signal`, nm.at); return r.sig; });
+                let until = null;
+                if (s.until) {
+                    const saved = this.cur.reads;
+                    this.cur.reads = new Map();
+                    until = this.cond(s.until, sc);
+                    if (!s.on) sigs = [...this.cur.reads.keys()];
+                    for (const [k, v] of this.cur.reads) if (saved && !saved.has(k)) saved.set(k, v);
+                    this.cur.reads = saved;
+                    if (!s.on && !sigs.length && !s.forT) this.warn("this 'wait until' reads no signal, so nothing can wake it: it waits forever", at);
+                }
+                const forT = s.forT ? this.exT(s.forT, TIME, sc) : null;
+                if (forT && !isTime(forT.t)) fail("'wait for' needs a time, such as 10 ns", s.forT.at);
+                const uniq = [...new Set(sigs)];
+                return function* (E) {
+                    const t = forT ? forT.f(E) : null;
+                    if (t !== null && t < 0) fail('a wait time cannot be negative', at);
+                    yield { sigs: uniq, until, t };
+                };
+            }
+            case 'if': {
+                const conds = s.branches.map(b => this.cond(b.cond, sc));
+                const bodies = s.branches.map(b => this.gseq(b.body, sc));
+                const els = s.els ? this.gseq(s.els, sc) : null;
+                return function* (E) {
+                    for (let i = 0; i < conds.length; i++) if (conds[i](E)) return yield* bodies[i](E);
+                    if (els) return yield* els(E);
+                };
+            }
+            case 'case': {
+                const alts = s.alts.map(al => ({ choices: al.choices, body: this.gseq(al.body, sc), at: al.at }));
+                const pick = this.caseOn(s.expr, alts, s.matching, sc, at, false);
+                return function* (E) { return yield* pick(E); };
+            }
+            case 'for': {
+                const rg = this.rangeOf(s.range, sc);
+                const ls = new Scope(sc, 'loop');
+                const slot = this.cur.slots++;
+                ls.add(s.param, { cls: 'loopvar', slot, t: rg.t || INTEGER, name: s.param }, at);
+                const body = this.gseq(s.body, ls);
+                const label = s.label;
+                return function* (E) {
+                    const r = rg.f(E), step = r.dir === 'to' ? 1 : -1;
+                    for (let i = r.l; step > 0 ? i <= r.r : i >= r.r; i += step) {
+                        if (++D.iter > 2000000) fail('this loop runs too long without waiting', at);
+                        E.fr[slot] = i;
+                        const c = yield* body(E);
+                        if (c) {
+                            if (c.k === 'exit' && (!c.label || c.label === label)) break;
+                            if (c.k === 'next' && (!c.label || c.label === label)) continue;
+                            return c;
+                        }
+                    }
+                };
+            }
+            case 'while': case 'loop': {
+                const cnd = s.k === 'while' ? this.cond(s.cond, sc) : null;
+                const body = this.gseq(s.body, sc);
+                const label = s.label;
+                return function* (E) {
+                    while (!cnd || cnd(E)) {
+                        if (++D.iter > 2000000) fail('this loop runs too long without waiting', at);
+                        const c = yield* body(E);
+                        if (c) {
+                            if (c.k === 'exit' && (!c.label || c.label === label)) break;
+                            if (c.k === 'next' && (!c.label || c.label === label)) continue;
+                            return c;
+                        }
+                    }
+                };
+            }
         }
         fail(`unsupported statement '${s.k}'`, at);
     }
@@ -2628,12 +2854,26 @@ class Design {
     }
     newProc(name, at) { const P = { name, at, drv: new Map(), sens: [], frame: null, run: null }; this.procs.push(P); return P; }
     elabProcess(st, sc, path) {
-        if (st.sens === null) fail('this process has no sensitivity list: write process(all) for combinational logic, or process(clk) for a clocked process (wait statements are not supported here)', st.at);
+        const waits = this.hasWait(st.body);
+        if (st.sens === null && !waits) fail('this process has no sensitivity list and no wait statement, so it would run forever at time 0: write process(all) for combinational logic, process(clk) for a clocked process, or wait statements as in a testbench', st.at);
+        if (st.sens !== null && waits) fail('a process with a sensitivity list cannot also contain wait statements: remove the list, or the waits', st.at);
         const P = this.newProc(path + (st.label || `process at line ${st.at % FILE}`), st.at);
         const saved = this.cur;
         this.cur = { proc: P, func: false, slots: 0, reads: new Map(), drives: new Map(), edge: false, inits: [] };
         const ps = new Scope(sc, 'proc');
         for (const d of st.decls) this.declare(d, ps);
+        if (waits) {
+            // runs from the top until a wait, and later resumes there
+            P.gen = this.gseq(st.body, ps);
+            const cw = this.cur;
+            P.frame = new Array(cw.slots);
+            P.E = { fr: P.frame, P, depth: 0 };
+            for (const it of cw.inits) P.frame[it.slot] = it.f(P.E);
+            P.drives = cw.drives;
+            P.sens = [];
+            this.cur = saved;
+            return;
+        }
         const body = this.seq(st.body, ps);
         const cur = this.cur;
         P.frame = new Array(cur.slots);
@@ -2690,8 +2930,8 @@ class Design {
     }
     elabConcAssign(st, sc, path) {
         const body = st.k === 'casgn'
-            ? [{ k: 'sasgn', target: st.target, val: st.val, alts: st.alts, at: st.at }]
-            : [{ k: 'ssel', target: st.target, sel: st.sel, alts: st.alts, matching: st.matching, at: st.at }];
+            ? [{ k: 'sasgn', target: st.target, val: st.val, alts: st.alts, mech: st.mech, at: st.at }]
+            : [{ k: 'ssel', target: st.target, sel: st.sel, alts: st.alts, matching: st.matching, mech: st.mech, at: st.at }];
         const p = { k: 'process', label: st.label, sens: 'all', decls: [], body, at: st.at };
         this.elabProcess(p, sc, path);
         if (st.k === 'casgn' && st.alts && st.alts[st.alts.length - 1].cond !== null) {
@@ -2839,11 +3079,140 @@ class Design {
         for (const p of this.topPorts) if (p.mode !== 'in' && !p.sig.drivers.length) this.warn(`the output '${p.name}' is never assigned, so it stays 'U'`, p.sig.at);
     }
 
-    /* ---------- the simulation kernel */
+    /* ---------- the simulation kernel. Time is a number of femtoseconds in this.now;
+       a value assigned without a delay takes effect one delta cycle later. */
     write(P, sig, off, leaves) {
         const d = P.drv.get(sig);
         if (!d.next) { d.next = d.val.slice(); this.pending.push(d); }
         for (let k = 0; k < leaves.length; k++) d.next[off + k] = leaves[k];
+        // a new value now replaces everything this driver had planned for later
+        if (d.fut) for (let k = 0; k < leaves.length; k++) { const q = d.fut[off + k]; if (q && q.length) q.length = 0; }
+    }
+    // items: [{ d: delay, leaves }] with growing delays; mech: 'inertial' (the default) or 'transport'
+    writeWave(P, sig, off, items, mech) {
+        let rest = items;
+        if (items[0].d === 0) { this.write(P, sig, off, items[0].leaves); rest = items.slice(1); if (!rest.length) return; }
+        const d = P.drv.get(sig);
+        if (!d.fut) d.fut = new Array(sig.n).fill(null);
+        const t1 = this.now + rest[0].d, n = rest[0].leaves.length;
+        for (let k = 0; k < n; k++) {
+            const q = d.fut[off + k] || (d.fut[off + k] = []);
+            while (q.length && q[q.length - 1].t >= t1) q.pop();
+            if (mech !== 'transport' && rest === items) {
+                // inertial delay: a pulse shorter than the delay is swallowed, so of the values
+                // planned before t1 only those right before it that equal the new value survive
+                const v1 = rest[0].leaves[k];
+                let j = q.length;
+                while (j > 0 && q[j - 1].v === v1) j--;
+                if (j) q.splice(0, j);
+            }
+            for (const it of rest) q.push({ t: this.now + it.d, v: it.leaves[k] });
+        }
+        this.futDrv.add(d);
+    }
+    // the next time at which a value is planned or a process wakes up
+    nextTime() {
+        let best = Infinity;
+        if (this.timers.length) {
+            this.timers = this.timers.filter(tm => tm.P.wait && tm.P.wait.tok === tm.tok);
+            for (const tm of this.timers) if (tm.t < best) best = tm.t;
+        }
+        for (const d of this.futDrv) for (const q of d.fut) if (q && q.length && q[0].t < best) best = q[0].t;
+        return best;
+    }
+    stepTo(t) {
+        this.now = t;
+        for (const d of [...this.futDrv]) {
+            let left = false;
+            for (let i = 0; i < d.fut.length; i++) {
+                const q = d.fut[i];
+                if (!q || !q.length) continue;
+                if (q[0].t === t) {
+                    if (!d.next) { d.next = d.val.slice(); this.pending.push(d); }
+                    while (q.length && q[0].t === t) d.next[i] = q.shift().v;
+                }
+                if (q.length) left = true;
+            }
+            if (!left) this.futDrv.delete(d);
+        }
+        if (this.timers.length) {
+            const keep = [];
+            for (const tm of this.timers) (tm.t === t ? this.wake : keep).push(tm);
+            this.timers = keep;
+        }
+        this.settle();
+    }
+    // all deltas now, then on through time until nothing is planned (designs driven step by step)
+    settleAll() {
+        this.settle();
+        for (let n = 0; ; n++) {
+            const t = this.nextTime();
+            if (t === Infinity) return;
+            if (n > 10000) fail('the design keeps planning new events and never comes to rest (a clock made with after, or a process that waits in a loop?)', 0);
+            this.stepTo(t);
+        }
+    }
+    // a process with wait statements: run it until it waits again
+    resume(P) {
+        const w = P.wait;
+        if (w) { for (const s of w.sigs) s.waiters.delete(P); P.wait = null; }
+        for (let restarts = 0; ;) {
+            if (!P.it) P.it = P.gen(P.E);
+            let r;
+            try { r = P.it.next(); } catch (e) { P.it = null; throw e; }
+            if (r.done) {
+                P.it = null;          // the end of a process leads back to its first statement
+                if (++restarts > 1) fail('this process runs through all its statements without waiting, so it would run forever at the same time', P.at);
+                continue;
+            }
+            const d = r.value;
+            const nw = { sigs: d.sigs, until: d.until, tok: ++this.waitSeq };
+            P.wait = nw;
+            for (const s of d.sigs) (s.waiters || (s.waiters = new Set())).add(P);
+            if (d.t === 0) this.wake.push({ P, tok: nw.tok });          // wait for 0 ns: the next delta cycle
+            else if (d.t !== null) this.timers.push({ t: this.now + d.t, P, tok: nw.tok });
+            return;
+        }
+    }
+    waitDone(P) {
+        const w = P.wait;
+        if (!w) return false;
+        if (!w.until) return true;
+        this.iter = 0;
+        return !!w.until(P.E);
+    }
+    // a testbench: run until it finishes, nothing is left to do, or the time limit
+    runTB(limit) {
+        this.tb = true;
+        let reason = null, steps = 0;
+        const rec = this.recorder();
+        try {
+            this.reset();
+            rec.sample();
+            for (;;) {
+                const t = this.nextTime();
+                if (t === Infinity) { reason = 'quiet'; break; }
+                if (t > limit || ++steps > 200000) { reason = 'limit'; break; }
+                this.stepTo(t);
+                rec.sample();
+            }
+        } catch (e) {
+            if (!(e instanceof Stop)) throw e;
+            reason = e.reason;
+            rec.sample();
+        }
+        return { reason, end: this.now, wave: rec.result() };
+    }
+    // the waveform of the signals of the top architecture
+    recorder() {
+        const sigs = this.sigs.filter(s => !s.name.includes('.')).slice(0, 24);
+        const logic = s => isLogic(s.t) || (isArr(s.t) && isLogic(s.t.elem));
+        const val = s => (logic(s) ? Array.from(s.cur, i => SLCH[i] || '?').join('') : strOf(s.t, unflat(s.t, s.cur, 0)));
+        const last = new Map(), changes = [];
+        return {
+            sample: () => { for (const s of sigs) { const v = val(s); if (last.get(s) !== v) { last.set(s, v); changes.push({ t: this.now, n: s.name, v }); } } },
+            result: () => ({ sigs: sigs.map(s => ({ name: s.name, w: logic(s) ? (isArr(s.t) ? Math.max(2, s.n) : 1) : 0 })), changes, end: this.now })
+        };
     }
     update(s) {
         let changed = false;
@@ -2864,22 +3233,26 @@ class Design {
     }
     runProc(P) {
         this.iter = 0;
-        P.run({ fr: P.frame, P, depth: 0 });
+        if (P.gen) this.resume(P);
+        else P.run({ fr: P.frame, P, depth: 0 });
     }
     reset() {
+        this.now = 0; this.timers = []; this.futDrv = new Set(); this.wake = []; this.waitSeq = 0;
         for (const s of this.sigs) {
             s.cur = s.init.slice(); s.last = s.init.slice(); s.chg.fill(-1);
             if (s.ext) s.ext = s.init.slice();
-            for (const d of s.drivers) { d.val = s.init.slice(); d.next = null; }
+            if (s.waiters) s.waiters.clear();
+            for (const d of s.drivers) { d.val = s.init.slice(); d.next = null; d.fut = null; }
         }
+        for (const P of this.procs) { P.it = null; P.wait = null; }
         this.pending = []; this.extDirty = []; this.delta = 0; this.msgs = [];
         for (const P of this.procs) this.runProc(P);
         this.settle();
-        this.msgs = [];               // warnings from time 0, while the inputs are still 'U'
+        if (!this.tb) this.msgs = [];   // warnings from time 0, while the inputs are still 'U'
     }
     settle() {
         let guard = 0;
-        while (this.pending.length || this.extDirty.length) {
+        while (this.pending.length || this.extDirty.length || this.wake.length) {
             if (++guard > 5000) fail('the design never settles: some signal keeps changing (a combinational loop, such as y <= not y?)', 0);
             this.delta++;
             const touched = new Set();
@@ -2888,7 +3261,15 @@ class Design {
             for (const s of this.extDirty) touched.add(s);
             this.extDirty = [];
             const run = new Set();
-            for (const s of touched) if (this.update(s)) for (const P of s.procs) run.add(P);
+            for (const w of this.wake) if (w.P.wait && w.P.wait.tok === w.tok) run.add(w.P);
+            this.wake = [];
+            let woken = null;
+            for (const s of touched) if (this.update(s)) {
+                for (const P of s.procs) run.add(P);
+                if (s.waiters && s.waiters.size) { woken = woken || new Set(); for (const P of s.waiters) woken.add(P); }
+            }
+            // a waiting process wakes when a signal it waits on changes and its condition holds
+            if (woken) for (const P of woken) if (!run.has(P) && this.waitDone(P)) run.add(P);
             for (const P of run) this.runProc(P);
         }
     }
@@ -2940,11 +3321,14 @@ function compile(files, top) {
         ports: D.topPorts.map(p => ({ name: p.name, mode: p.mode, width: p.sig.n, vector: isArr(p.t), type: tname(p.t), dir: isArr(p.t) ? p.t.rng.dir : null })),
         reset: wrap(() => D.reset()),
         set: wrap((n, v) => D.set(n, v)),
-        settle: wrap(() => D.settle()),
+        settle: wrap(() => D.settleAll()),
         get: wrap(n => D.get(n)),
-        messages: () => D.msgs.map(m => Object.assign(locate(m, names), { sev: m.sev }))
+        // a design without ports that drives itself: run it until it ends (times in fs)
+        runTB: wrap(limit => D.runTB(limit)),
+        now: () => D.now,
+        messages: () => D.msgs.map(m => Object.assign(locate(m, names), { sev: m.sev, t: m.t }))
     };
 }
 
-G.VHDL = { compile, lex, Parser, version: '1.0' };
+G.VHDL = { compile, lex, Parser, version: '1.1' };
 })(typeof window !== 'undefined' ? window : globalThis);
