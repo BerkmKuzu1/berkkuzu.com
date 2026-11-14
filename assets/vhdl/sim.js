@@ -2001,9 +2001,11 @@ class Design {
 
     /* ---------- operators */
     pairCtx(n, sc, want, pick) {
-        let a = this.ex(n.l, null, sc), b = this.ex(n.r, null, sc);
+        // an operand that needs a type from outside, such as "01" or x"A" & "01", waits for the other side
+        const open = node => { try { return this.ex(node, null, sc); } catch (e) { if (e.ambiguous) return { ctx: true }; throw e; } };
+        let a = open(n.l), b = open(n.r);
         if (a.ctx && b.ctx) {
-            if (!want) fail(`the types in '${n.op}' cannot be worked out: give one side a type, e.g. std_logic_vector'("0101")`, n.at);
+            if (!want) { const e = new VError(`the types in '${n.op}' cannot be worked out: give one side a type, e.g. std_logic_vector'("0101")`, n.at); e.ambiguous = true; throw e; }
             a = this.exT(n.l, pick(n.l, want, true), sc);
             b = this.exT(n.r, pick(n.r, want, true), sc);
         } else if (a.ctx) a = this.exT(n.l, pick(n.l, b.t, false), sc);
