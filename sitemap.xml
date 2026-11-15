@@ -29,6 +29,10 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://berkkuzu.com/board.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://berkkuzu.com/about.html</loc>
     <priority>0.8</priority>
   </url>

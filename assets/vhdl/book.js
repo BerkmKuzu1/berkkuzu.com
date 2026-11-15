@@ -25,7 +25,7 @@ const BLURBS = {
     mem: 'ROMs and RAMs as arrays, synchronous and asynchronous reads, register files and FIFOs.',
     rtl: 'Datapaths with a controller: FSMD design, start/done handshakes, algorithms that take many cycles, and a UART.',
     tb: 'Testbenches: clocks and stimulus, wait and after, assertions that check results, and exercises that ask you to catch bugs.',
-    next: 'Simulators for your own computer, and the books to read next.'
+    next: 'A virtual FPGA board for your designs, simulators for your own computer, and the books to read next.'
 };
 
 /* ======================================================= 1 Getting started */
@@ -1814,6 +1814,43 @@ end architecture;
 });
 
 /* ===================================================== 14 Going further */
+page('next', 'board', 'A virtual FPGA board', `A waveform shows what a design does; a board lets you use it. The [virtual FPGA board](board.html) of this site runs your VHDL in the browser, on the same simulator as this book: flip its switches and press its buttons, and watch its LEDs, its four-digit display and its serial terminal answer while your design runs.
+
+## The pins
+
+A design connects to the board through the names of its ports:
+
+| Pin | Port | What it does |
+|---|---|---|
+| {clk} | {in std_logic} | the board clock |
+| {sw} | {in std_logic_vector(15 downto 0)} | 16 slide switches |
+| {btn} | {in std_logic_vector(4 downto 0)} | 5 buttons: centre, up, left, right, down |
+| {led} | {out std_logic_vector(15 downto 0)} | 16 LEDs |
+| {seg}, {dp}, {an} | {out} | the display: segments {gfedcba}, decimal point, digit select |
+| {tx}, {rx} | {out}, {in} | the serial terminal, 8 data bits and 1 stop bit |
+
+Declare only the pins you use. A vector may be shorter than the pin, such as {led(7 downto 0)} for the eight rightmost LEDs.
+
+## The clock
+
+Real boards run at 50 or 100 MHz. A simulator in a browser manages a few hundred thousand clock cycles a second for a small design, so the virtual board runs at a clock that you choose, from 10 Hz to 1 MHz. Write timing with a generic:
+
+~~~
+generic (CLK_HZ : positive := 100_000_000);
+...
+constant TENTH : positive := CLK_HZ / 10;   -- the cycles in 0.1 s
+~~~
+
+The board fills in its own frequency when it programs the design, and the same code runs unchanged on a real board, where {CLK_HZ} keeps its default. A {BAUD} generic gets the speed of the terminal in the same way.
+
+## What to try
+
+- The examples of the board, from Blinky and a running light to a stopwatch and a serial echo.
+- Your PWM generator of chapter 6: the board shows how long each LED was lit, so the LEDs dim, as your eye would see them.
+- Your debouncer of chapter 6, with the board's "buttons bounce" switch on.
+- The UART transmitter of chapter 12, with its tick made from {CLK_HZ / BAUD}, sending text to the terminal.
+- The display example at a clock of 10 Hz, to watch the four digits take turns, much too slowly to fool the eye.`);
+
 page('next', 'simulators', 'Simulators for your computer', `Everything in this book also runs in the simulators that people use at work. One of them is free and small enough to install in a minute.
 
 ## GHDL

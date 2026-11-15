@@ -2765,18 +2765,26 @@ class Design {
     }
 
     /* ---------- elaboration */
-    elaborate(top) {
+    // gens: values for integer generics of the top entity, by lower-case name (a board sets clk_hz)
+    elaborate(top, gens) {
         const ent = this.ents.get(top);
         if (!ent) fail(`there is no entity named '${top}': the top entity must be called ${top}`, 0);
         const arch = this.pickArch(ent, null, ent.at);
         const es = new Scope(this.contextScope(arch), 'inst');
         this.path = '';
+        this.topGenerics = [];
         for (const g of ent.generics) for (const nm of g.names) {
-            if (!g.def) fail(`the generic '${nm}' of the top entity needs a default value`, g.at);
             const t = this.subtype(g.st, es);
-            const x = this.exT(g.def, t, es);
-            if (!x.st) fail('a generic default must be a constant', g.at);
-            es.add(nm, { cls: 'const', t, v: this.fit(x, t, g.at, `generic '${nm}'`)(x.sv), name: nm }, g.at);
+            let x;
+            if (gens && gens[nm] !== undefined && isInt(t)) x = K(UNIV, gens[nm]);
+            else {
+                if (!g.def) fail(`the generic '${nm}' of the top entity needs a default value`, g.at);
+                x = this.exT(g.def, t, es);
+                if (!x.st) fail('a generic default must be a constant', g.at);
+            }
+            const v = this.fit(x, t, g.at, `generic '${nm}'`)(x.sv);
+            es.add(nm, { cls: 'const', t, v, name: nm }, g.at);
+            this.topGenerics.push({ name: nm, value: v, set: !!(gens && gens[nm] !== undefined) });
         }
         this.topPorts = [];
         for (const p of ent.ports) {
@@ -3298,12 +3306,12 @@ function locate(e, names) {
     const at = e.at || 0;
     return { file: names[Math.floor(at / FILE)] || null, fileIdx: Math.floor(at / FILE), line: at % FILE, msg: e.message || e.msg };
 }
-function compile(files, top) {
+function compile(files, top, opts) {
     const D = new Design();
     const names = files.map(f => f.name);
     try {
         files.forEach((f, i) => D.addFile(f.text, i, f.name));
-        D.elaborate(top);
+        D.elaborate(top, opts && opts.generics);
     } catch (e) {
         if (e instanceof VError) return { ok: false, errors: [locate(e, names)], warnings: D.warns.map(w => locate(w, names)) };
         return { ok: false, errors: [{ file: null, fileIdx: -1, line: 0, msg: 'internal error: ' + e.message, stack: e.stack }], warnings: [] };
@@ -3326,6 +3334,18 @@ function compile(files, top) {
         // a design without ports that drives itself: run it until it ends (times in fs)
         runTB: wrap(limit => D.runTB(limit)),
         now: () => D.now,
+        generics: D.topGenerics,
+        // fast access for a board that runs many cycles: leaf values are std_logic positions ('0' = 2, '1' = 3)
+        reader: name => { const s = D.port(name).sig; return () => s.cur; },
+        driver: name => {
+            const s = D.port(name).sig;
+            return leaves => {
+                let changed = false;
+                for (let i = 0; i < leaves.length; i++) if (s.ext[i] !== leaves[i]) { s.ext[i] = leaves[i]; changed = true; }
+                if (changed) D.extDirty.push(s);
+            };
+        },
+        step: wrap(() => D.settleAll()),
         messages: () => D.msgs.map(m => Object.assign(locate(m, names), { sev: m.sev, t: m.t }))
     };
 }
