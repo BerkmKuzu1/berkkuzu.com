@@ -41,8 +41,10 @@ function program(text, opt) {
     }
     if (errors.length) return { ok: false, errors, warnings: d.warnings };
     try {
-        const dev = new Device(d, used, opt);
-        return { ok: true, dev, top, used, generics: d.generics, warnings: d.warnings };
+        // with a bitstream the board runs the FPGA fabric that the bitstream configures, not the simulator
+        const core = opt.bitstream ? VHDLFpga.fabricCore(opt.bitstream, d.ports) : d;
+        const dev = new Device(core, used, opt);
+        return { ok: true, dev, top, used, generics: d.generics, warnings: d.warnings, fabric: !!opt.bitstream };
     } catch (e) {
         return { ok: false, errors: [e.where || { line: 0, msg: e.message }], warnings: d.warnings };
     }

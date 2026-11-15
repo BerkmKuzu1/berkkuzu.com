@@ -1843,9 +1843,16 @@ constant TENTH : positive := CLK_HZ / 10;   -- the cycles in 0.1 s
 
 The board fills in its own frequency when it programs the design, and the same code runs unchanged on a real board, where {CLK_HZ} keeps its default. A {BAUD} generic gets the speed of the terminal in the same way.
 
+## On an FPGA of its own
+
+The board can also run your design as hardware. [Inside the FPGA](board.html#fpga), below the board, builds it for VF-1, a small FPGA modelled in the page. Synthesis turns the code into logic gates and flip-flops, mapping packs the gates into 4-input lookup tables, placement and routing put those on the tiles and wires of the chip, and the result is a bitstream. Set the board to run on the FPGA and it runs that bitstream on an emulator of the chip, which reads nothing else. The page shows where each lookup table landed, how the wires run, the slowest path through the logic and the bits themselves.
+
+Synthesis builds what the code describes, so the rules of chapter 12 apply: a latch, a signal with two drivers or a loop of unknown length stops it with a message, and so do waits and delays, which belong in testbenches.
+
 ## What to try
 
 - The examples of the board, from Blinky and a running light to a stopwatch and a serial echo.
+- Any of them on the FPGA: click a tile to see its truth table, and compare the slowest path with the 10 ns of a 100 MHz clock.
 - Your PWM generator of chapter 6: the board shows how long each LED was lit, so the LEDs dim, as your eye would see them.
 - Your debouncer of chapter 6, with the board's "buttons bounce" switch on.
 - The UART transmitter of chapter 12, with its tick made from {CLK_HZ / BAUD}, sending text to the terminal.

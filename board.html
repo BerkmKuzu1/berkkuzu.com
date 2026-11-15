@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>Virtual FPGA Board — Berk Muammer Kuzu</title>
-<meta name="description" content="A virtual FPGA board in the browser: write VHDL for its switches, buttons, LEDs, 7-segment display and serial terminal, program it, and play with your design while it runs.">
+<meta name="description" content="A virtual FPGA board in the browser: write VHDL for its switches, buttons, LEDs, 7-segment display and serial terminal, run it, or build it for a small FPGA with synthesis, place and route and a bitstream.">
 <link rel="canonical" href="https://berkkuzu.com/board.html">
 
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="berkkuzu.com">
 <meta property="og:title" content="Virtual FPGA Board — run your VHDL in the browser">
-<meta property="og:description" content="Program a virtual FPGA board with VHDL and flip its switches while your design runs.">
+<meta property="og:description" content="Program a virtual FPGA board with VHDL, or build your design into a bitstream for its own small FPGA.">
 <meta property="og:url" content="https://berkkuzu.com/board.html">
 <meta property="og:image" content="https://berkkuzu.com/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -138,8 +138,49 @@ select.in, input.in { font: inherit; font-size: 0.88rem; padding: 0.42rem 0.6rem
 .pins th, .pins td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
 .pins td:first-child { font-family: var(--font-mono); white-space: nowrap; color: var(--text); }
 
+/* the FPGA */
+:root { --fp-bg: #0b0f15; --fp-tile: #263041; --fp-lut: #3f7fe0; --fp-thru: #2a4870; --fp-ff: #46c98a; --fp-pad: #e9b44c; --fp-crit: #ff5a4f; --fp-sel: #ffffff; }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --fp-bg: #f4f6f9; --fp-tile: #c3ccd8; --fp-lut: #2f6fd0; --fp-thru: #a9c1e6; --fp-ff: #17824d; --fp-pad: #b07c0c; --fp-crit: #d1342a; --fp-sel: #111111; }
+}
+:root[data-theme="light"] { --fp-bg: #f4f6f9; --fp-tile: #c3ccd8; --fp-lut: #2f6fd0; --fp-thru: #a9c1e6; --fp-ff: #17824d; --fp-pad: #b07c0c; --fp-crit: #d1342a; --fp-sel: #111111; }
+.fp-head { border-top: 1px solid var(--border); padding-top: 1.8rem; margin-bottom: 1rem; }
+.fp-head h2 { font-size: clamp(1.6rem, 4vw, 2.3rem); margin: 0 0 0.6rem; }
+.fp-head h2 span { color: var(--accent); }
+.fp-head .section-intro { max-width: 82ch; }
+.fp-head details { margin-top: 0.9rem; max-width: 82ch; color: var(--text-dim); font-size: 0.93rem; }
+.fp-head summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); }
+.fp-head details p, .fp-head details ul { margin: 0.6rem 0 0; }
+.fp-head code { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 0.02em 0.32em; color: var(--text); }
+.fp-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 1.6rem; align-items: start; margin-top: 1rem; }
+.fp-dev canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 10px; border: 1px solid var(--border-strong); cursor: crosshair; touch-action: manipulation; }
+.fp-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; margin-top: 0.55rem; font: 0.72rem var(--font-mono); color: var(--text-mute); }
+.fp-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 0.3rem; vertical-align: -1px; }
+.fp-card { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); padding: 0.8rem 0.95rem; margin-bottom: 0.9rem; min-width: 0; }
+.fp-card h3 { font-size: 0.95rem; margin: 0 0 0.5rem; }
+.fp-card p { font-size: 0.87rem; color: var(--text-dim); margin: 0.4rem 0 0; }
+.fp-kv, .fp-path { width: 100%; border-collapse: collapse; }
+.fp-kv { font-size: 0.85rem; }
+.fp-kv td { padding: 0.26rem 0.4rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.fp-kv td:first-child { color: var(--text-dim); white-space: nowrap; }
+.fp-kv td.n { font-family: var(--font-mono); }
+.fp-scroll { overflow-x: auto; }
+.fp-path { font: 0.78rem var(--font-mono); }
+.fp-path td { padding: 0.2rem 0.35rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.fp-path td.d { color: var(--text-mute); text-align: right; }
+.fp-path td.t { text-align: right; color: var(--text); }
+.fp-tt { display: grid; grid-template-columns: auto repeat(4, 2rem); gap: 2px; font: 0.74rem var(--font-mono); margin: 0.45rem 0 0.2rem; width: max-content; }
+.fp-tt span { text-align: center; padding: 0.12rem 0.2rem; border-radius: 3px; background: var(--surface-2); }
+.fp-tt span.one { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.fp-tt span.h { background: none; color: var(--text-mute); }
+.fp-hint { color: var(--text-dim); font-size: 0.9rem; margin: 0; }
+.fp-hex { font: 0.72rem/1.5 var(--font-mono); color: var(--text-dim); word-break: break-all; margin: 0.45rem 0 0; }
+.fp-state { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-mute); }
+.fp-state.ok { color: var(--ok); }
+.fp-state.old { color: var(--warn); }
 @media (max-width: 1060px) {
     .bd { grid-template-columns: minmax(0, 1fr); }
+    .fp-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) {
     .leds, .sws { grid-template-columns: repeat(8, minmax(0, 1fr)); row-gap: 0.6rem; }
@@ -206,6 +247,9 @@ select.in, input.in { font: inherit; font-size: 0.88rem; padding: 0.42rem 0.6rem
                     <p>The LEDs and the display show how long each one was lit since the last screen update, as your eye
                         would: a PWM output looks dimmed, and a display that lights its digits in turn looks steady, as
                         long as it switches fast enough. Slow the clock down to watch either happen.</p>
+                    <p>Set <em>Run on</em> to <em>the FPGA</em> and the board runs real hardware instead: your design is built for VF-1,
+                        a small FPGA modelled in this page, and the board runs the bitstream on an emulator of that chip.
+                        <a href="#fpga">Inside the FPGA</a>, below the board, shows every step.</p>
                 </details>
             </div>
         </div>
@@ -225,6 +269,11 @@ select.in, input.in { font: inherit; font-size: 0.88rem; padding: 0.42rem 0.6rem
                     <div class="bd-bar" style="margin-top:0.6rem">
                         <span class="keys">Ctrl+Enter programs · Tab indents</span>
                         <span class="sp"></span>
+                        <label class="lbl" for="mode">Run on</label>
+                        <select class="in" id="mode">
+                            <option value="sim">the simulator</option>
+                            <option value="fabric">the FPGA</option>
+                        </select>
                         <button type="button" class="cbtn" id="restore">Restore the example</button>
                     </div>
                     <p class="bd-note" id="note"></p>
@@ -278,6 +327,70 @@ select.in, input.in { font: inherit; font-size: 0.88rem; padding: 0.42rem 0.6rem
             </div>
         </div>
     </section>
+    <section class="section" id="fpga" style="padding-top:0">
+        <div class="container wide">
+            <div class="fp-head">
+                <h2>Inside the <span>FPGA</span></h2>
+                <p class="section-intro">
+                    Here your design becomes hardware. Synthesis turns the VHDL into logic gates and flip-flops, mapping
+                    packs the gates into 4-input lookup tables, placement puts those on the tiles of a small FPGA,
+                    routing connects them through its wires and switches, and the configuration of every tile and
+                    switch is written into a bitstream. Program the board from the bitstream and it runs on an emulator
+                    of the chip that reads nothing but those bits.
+                </p>
+                <details>
+                    <summary>How VF-1 is built</summary>
+                    <ul>
+                        <li><strong>Logic.</strong> 24 &times; 24 tiles. Each holds one 4-input LUT and one flip-flop that takes the rising clock edge
+                            and can have an asynchronous set or reset. The flip-flop's input is its own LUT; the LUT output O and the
+                            flip-flop output Q both leave the tile.</li>
+                        <li><strong>Routing.</strong> Channels of 12 wires run between the tiles, and each wire spans one tile. The switch box at
+                            each corner can join wire <em>t</em> to wire <em>t</em> of the other channels there. Every tile input can pick
+                            any wire of the four channels around its tile, and every output can drive any of them.</li>
+                        <li><strong>Pins.</strong> The 51 pins of the board sit on the ring of I/O tiles, always in the same places: switches and LEDs
+                            at the bottom, the display at the top, the buttons on the right, the serial port on the left. The clock
+                            reaches every flip-flop through its own network.</li>
+                        <li><strong>Timing.</strong> A LUT takes 0.45 ns, a flip-flop 0.35 ns from the clock edge to Q and needs its input 0.15 ns
+                            before the edge. A wire with its switch adds 0.35 ns, a tile input 0.15 ns, an input pad 0.6 ns and an
+                            output pad 0.8 ns.</li>
+                        <li><strong>Bitstream.</strong> 146 bits per tile: the LUT's 16-bit INIT, 4 bits for the flip-flop, a 6-bit multiplexer for each of
+                            the 5 inputs and an enable for each of the 48 wires that O and Q can drive. Then 72 bits per switch box and a few
+                            per pad: 16,197 bytes, closed by a CRC-32.</li>
+                    </ul>
+                    <p>The tools, all in your browser: synthesis reads the design with the simulator's own analyzer and builds an
+                        and-inverter graph; mapping enumerates 4-input cuts and picks the fewest levels of LUTs, then fewer LUTs at that
+                        depth; placement is simulated annealing on wire length; routing is PathFinder, where nets negotiate for wires
+                        that are wanted twice; timing adds up the delays of the routed paths. The emulator rebuilds the circuit from the
+                        bits alone: it joins the wires whose switches are on, finds the one output that drives each of those nets,
+                        and runs the LUTs and flip-flops clock cycle by clock cycle.</p>
+                </details>
+            </div>
+            <div class="bd-bar">
+                <button type="button" class="cbtn pri" id="impl">&#9881; Implement</button>
+                <button type="button" class="cbtn" id="fprog" disabled>&#9654; Program from the bitstream</button>
+                <button type="button" class="cbtn" id="fdl" disabled>Download the bitstream</button>
+                <span class="sp"></span>
+                <span class="fp-state" id="fstate">not implemented yet</span>
+            </div>
+            <ul class="bd-log" id="flog" aria-live="polite"></ul>
+            <div class="fp-grid">
+                <div class="fp-dev">
+                    <canvas id="fcan" aria-label="The FPGA: its tiles, pins and routed wires. Click a tile or a pin to inspect it."></canvas>
+                    <div class="fp-legend">
+                        <span><i style="background:var(--fp-lut)"></i>LUT</span>
+                        <span><i style="background:var(--fp-ff)"></i>with flip-flop</span>
+                        <span><i style="background:var(--fp-thru)"></i>LUT as a wire</span>
+                        <span><i style="background:var(--fp-pad)"></i>pin</span>
+                        <span><i style="background:var(--fp-crit)"></i>critical path</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="fp-card" id="finsp"></div>
+                    <div id="freps"></div>
+                </div>
+            </div>
+        </div>
+    </section>
 
 </main>
 
@@ -296,26 +409,29 @@ select.in, input.in { font: inherit; font-size: 0.88rem; padding: 0.42rem 0.6rem
 </footer>
 
 <script src="script.js"></script>
-<script src="assets/vhdl/sim.js?v=20261115c"></script>
-<script src="assets/vhdl/check.js?v=20261115c"></script>
-<script src="assets/vhdl/ui.js?v=20261115c"></script>
-<script src="assets/vhdl/board.js?v=20261115c"></script>
+<script src="assets/vhdl/sim.js?v=20261115d"></script>
+<script src="assets/vhdl/check.js?v=20261115d"></script>
+<script src="assets/vhdl/ui.js?v=20261115d"></script>
+<script src="assets/vhdl/synth.js?v=20261115d"></script>
+<script src="assets/vhdl/fpga.js?v=20261115d"></script>
+<script src="assets/vhdl/board.js?v=20261115d"></script>
 <script>
 (function () {
 'use strict';
 
 const { h, editor } = VHDLUI;
 const { PINS, program, EXAMPLES, CLOCKS, BAUDS } = VHDLBoard;
+const FP = VHDLFpga;
 const $ = id => document.getElementById(id);
 const KEY = 'vhdl-board-v1';
-let store = { example: 'blinky', code: null, clkHz: 1000, baud: 9600, bounce: false };
+let store = { example: 'blinky', code: null, clkHz: 1000, baud: 9600, bounce: false, mode: 'sim' };
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') store = Object.assign(store, s); } catch (e) { /* private mode */ }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { /* ignore */ } }
 const exampleOf = id => EXAMPLES.find(e => e.id === id) || EXAMPLES[1];
 const fmtHz = f => (f >= 1e6 ? `${f / 1e6} MHz` : f >= 1e3 ? `${f / 1e3} kHz` : `${f} Hz`);
 
 /* ---------- the code */
-const ed = editor(store.code || exampleOf(store.example).code, v => { store.code = v; save(); }, () => programBoard());
+const ed = editor(store.code || exampleOf(store.example).code, v => { store.code = v; save(); fpgaState(); }, () => programBoard());
 $('ed').append(ed.el);
 $('ex').replaceChildren(...EXAMPLES.map(e => h('option', { value: e.id, selected: e.id === store.example ? true : null }, e.title)));
 $('ex').addEventListener('change', e => {
@@ -418,9 +534,27 @@ let dev = null, running = true, debt = 0, last = performance.now(), shownText = 
 const meter = { t: performance.now(), c: 0, v: 0 };
 function logItems(items) { $('log').replaceChildren(...items); }
 function lineBtn(e) { return e.line ? h('button', { type: 'button', class: 'ln', onclick: () => ed.goLine(e.line) }, `line ${e.line}`) : null; }
+// the board runs the design on the simulator, or on the FPGA from the design's bitstream
 function programBoard(why) {
+    if (store.mode !== 'fabric') return programWith(null, why);
+    if (impl && impl.key === keyNow()) return programWith(impl, why);
+    // the bitstream is missing, or belongs to other code or another clock: build it first
+    if (busy) { pending = { why }; return; }
+    dev = null;
+    blank();
+    $('pwr').classList.remove('on');
+    $('pwr-l').textContent = 'implementing...';
+    logItems([h('li', null, 'Building the design for the FPGA; the board is programmed when the bitstream is ready (progress below the board).')]);
+    implementDesign().then(im => {
+        if (pending) return;
+        if (im && im.key === keyNow()) programWith(im, why);
+        else if (im) programBoard(why);
+        else { setMode('sim'); programWith(null, 'The design could not be built for the FPGA (the reasons are below the board), so the board runs it on the simulator.'); }
+    });
+}
+function programWith(im, why) {
     const t0 = performance.now();
-    const r = program(ed.value, { clkHz: store.clkHz, baud: store.baud });
+    const r = program(ed.value, { clkHz: store.clkHz, baud: store.baud, bitstream: im ? im.bits.bytes : null });
     const ms = Math.round(performance.now() - t0);
     const marks = {};
     (r.warnings || []).forEach(w => { if (w.line) marks[w.line] = 'wrn'; });
@@ -440,7 +574,8 @@ function programBoard(why) {
         $('tout').textContent = '';
         const pins = Object.values(r.used).map(p => (p.vector ? `${p.name}(${p.width - 1}:0)` : p.name));
         const gens = (r.generics || []).filter(g => g.set).map(g => `${g.name.toUpperCase()} = ${g.value}`);
-        items.push(h('li', { class: 'ok' }, `Programmed ${r.top} in ${ms} ms. Pins: ${pins.join(', ') || 'none'}.${gens.length ? ` The board set ${gens.join(' and ')}.` : ''}`));
+        items.push(h('li', { class: 'ok' }, r.fabric ? `Programmed ${r.top} from its bitstream (${im.bits.bytes.length.toLocaleString('en')} bytes) in ${ms} ms: the board runs the FPGA, not the simulator. Pins: ${pins.join(', ') || 'none'}.`
+            : `Programmed ${r.top} in ${ms} ms. Pins: ${pins.join(', ') || 'none'}.${gens.length ? ` The board set ${gens.join(' and ')}.` : ''}`));
         if (!r.used.clk) items.push(h('li', null, 'The design has no clk port: it is purely combinational, and the board just keeps evaluating it.'));
         else if (!(r.generics || []).some(g => g.name === 'clk_hz')) items.push(h('li', null, 'The design has no CLK_HZ generic, so its timing does not follow the board clock. Declare generic (CLK_HZ : positive := ...) to get it.'));
         if (r.used.tx || r.used.rx) { const cpb = Math.floor(store.clkHz / store.baud); if (cpb < 8) items.push(h('li', { class: 'w' }, `At ${fmtHz(store.clkHz)} and ${store.baud} baud a bit lasts only ${cpb} clock cycles. Raise the clock or lower the baud rate for a reliable serial link.`)); }
@@ -450,7 +585,7 @@ function programBoard(why) {
     logItems(items);
     showNote();
     $('pwr').classList.toggle('on', !!dev);
-    $('pwr-l').textContent = dev ? `${r.top} · ${fmtHz(store.clkHz)}` : 'not programmed';
+    $('pwr-l').textContent = dev ? `${r.top} · ${fmtHz(store.clkHz)}${r.fabric ? ' · FPGA' : ''}` : 'not programmed';
 }
 function blank() {
     LEDS.forEach(l => l.style.setProperty('--b', 0));
@@ -483,6 +618,11 @@ function newMessages() {
     }
 }
 
+$('prog').addEventListener('click', () => programBoard());
+$('mode').value = store.mode;
+$('mode').addEventListener('change', e => { setMode(e.target.value); programBoard(); });
+function setMode(m) { store.mode = m; save(); $('mode').value = m; }
+
 /* ---------- running */
 $('run').addEventListener('click', () => { running = !running; $('run').textContent = running ? 'Pause' : 'Run'; $('step').disabled = running; last = performance.now(); debt = 0; });
 $('step').addEventListener('click', () => {
@@ -514,6 +654,340 @@ function loop(now) {
     if (now - meter.t >= 1000) { meter.v = meter.c / ((now - meter.t) / 1000); meter.c = 0; meter.t = now; stat(); }
     requestAnimationFrame(loop);
 }
+
+/* ---------- the FPGA: synthesis, mapping, placement, routing and the bitstream */
+let impl = null, busy = false, sel = null, view = null, pending = null;
+const keyNow = () => `${store.clkHz}|${store.baud}|${ed.value}`;
+const nextFrame = () => new Promise(r => setTimeout(r, 0));
+const ns = t => `${t.toFixed(2)} ns`;
+const pct = (a, b) => `${b ? Math.round((100 * a) / b) : 0}%`;
+const padName = p => `${p.pin}${p.idx === null ? '' : `(${p.idx})`}`;
+function stepText(st) {
+    switch (st.phase) {
+        case 'place': return `Placement: temperature step ${st.step}, wire length estimate ${Math.round(st.cost)}, ${Math.round(100 * st.rate)}% of the moves kept.`;
+        case 'route': return `Routing: round ${st.iter}, ${st.over} wire${st.over === 1 ? '' : 's'} wanted by more than one net.`;
+        default: return st.msg;
+    }
+}
+async function implementDesign() {
+    if (busy) return null;
+    busy = true;
+    $('impl').disabled = true; $('fprog').disabled = true; $('fdl').disabled = true;
+    $('fstate').textContent = 'implementing...';
+    $('fstate').className = 'fp-state';
+    const code = ed.value, key = keyNow(), items = [];
+    const line = h('li', null, 'Synthesis: turning the VHDL into gates and flip-flops...');
+    const show = live => $('flog').replaceChildren(...items, ...(live ? [line] : []));
+    show(true);
+    await nextFrame();
+    let result = null;
+    try {
+        const chk = program(code, { clkHz: store.clkHz, baud: store.baud });
+        if (!chk.ok) {
+            items.push(h('li', { class: 'e' }, 'The design does not fit the board yet; this is what programming it says:'));
+            chk.errors.forEach(e => items.push(h('li', { class: 'e' }, lineBtn(e), e.msg)));
+            return null;
+        }
+        const t0 = performance.now();
+        const s = VHDL.synthesize([{ name: 'design', text: code }], chk.top, { generics: { clk_hz: store.clkHz, baud: store.baud } });
+        const synthMs = Math.round(performance.now() - t0);
+        if (!s.ok) {
+            items.push(h('li', { class: 'e' }, 'Synthesis stopped: this design cannot become hardware as it is written.'));
+            s.errors.forEach(e => items.push(h('li', { class: 'e' }, lineBtn(e), e.msg)));
+            const marks = {};
+            s.errors.forEach(e => { if (e.line) marks[e.line] = 'err'; });
+            ed.mark(marks);
+            return null;
+        }
+        const gates = s.net.aig.nodes.reduce((a, n) => a + (n.k === 'a' ? 1 : 0), 0);
+        items.push(h('li', { class: 'ok' }, `Synthesis: ${gates.toLocaleString('en')} AND gates (with inverters) and ${s.net.ffs.length} flip-flops, in ${synthMs} ms.`));
+        (s.warnings || []).forEach(w => items.push(h('li', { class: 'w' }, lineBtn(w), w.msg)));
+        const gen = FP.implementGen(s.net, { seed: 1 });
+        const t1 = performance.now();
+        let r, tick = t1;
+        for (;;) {
+            r = gen.next();
+            if (r.done) break;
+            line.textContent = stepText(r.value);
+            if (performance.now() - tick > 30) { show(true); await nextFrame(); tick = performance.now(); }
+        }
+        const im = Object.assign(r.value, { key, top: chk.top, gates, synthMs, implMs: Math.round(performance.now() - t1), clkHz: store.clkHz });
+        const A = im.arch, tm = im.timing;
+        items.push(h('li', { class: 'ok' }, `Mapping: ${im.map.luts.length} LUTs, at most ${im.map.levels} in a row. Placement: ${im.cl.bles.length} of ${A.W * A.H} logic tiles.`));
+        items.push(h('li', { class: 'ok' }, `Routing: ${im.route.wires.toLocaleString('en')} wire segments, done in ${im.route.iters} round${im.route.iters === 1 ? '' : 's'}.${tm.fmax ? ` Timing: up to ${tm.fmax.toFixed(1)} MHz.` : ''}`));
+        items.push(h('li', { class: 'ok' }, `Bitstream: ${im.bits.bytes.length.toLocaleString('en')} bytes, ${im.bits.ones.toLocaleString('en')} bits set. Everything took ${(synthMs + im.implMs).toLocaleString('en')} ms.`));
+        impl = im;
+        sel = null;
+        result = im;
+    } catch (e) {
+        items.push(h('li', { class: 'e' }, e.message));
+    } finally {
+        busy = false;
+        show(false);
+        $('impl').disabled = false;
+        // the board asked for a bitstream while this one was being built
+        if (pending) { const w = pending.why; pending = null; setTimeout(() => programBoard(w)); }
+        fpgaState();
+        drawDevice();
+        showInspector();
+        showReports();
+    }
+    return result;
+}
+function fpgaState() {
+    const fresh = impl && impl.key === keyNow();
+    $('fprog').disabled = !fresh || busy;
+    $('fdl').disabled = !impl || busy;
+    if (busy) return;
+    const st = $('fstate');
+    if (!impl) { st.textContent = 'not implemented yet'; st.className = 'fp-state'; }
+    else if (fresh) { st.textContent = `implemented: ${impl.top} at ${fmtHz(impl.clkHz)}`; st.className = 'fp-state ok'; }
+    else { st.textContent = 'the code or the clock changed since: implement again'; st.className = 'fp-state old'; }
+}
+$('impl').addEventListener('click', () => { implementDesign(); });
+$('fprog').addEventListener('click', () => { setMode('fabric'); programBoard(); document.getElementById('board').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); });
+$('fdl').addEventListener('click', () => {
+    if (!impl) return;
+    const url = URL.createObjectURL(new Blob([impl.bits.bytes], { type: 'application/octet-stream' }));
+    const a = h('a', { href: url, download: `${impl.top}.bit` });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+});
+
+// what sits where: tiles, nets and the critical path
+function layout() {
+    if (!impl) return null;
+    const A = impl.arch, cl = impl.cl, W = A.W;
+    const tileBle = new Map(), bleXY = [];
+    impl.loc.forEach((t, b) => { tileBle.set(t, b); bleXY[b] = { x: t % W + 1, y: Math.floor(t / W) + 1 }; });
+    const sinkNet = new Map(), outNet = new Map(), padNet = new Map();
+    cl.nets.forEach((n, i) => {
+        if (n.src.b !== undefined) outNet.set(`${n.src.b}:${n.src.pin}`, i); else padNet.set(n.src.pad, i);
+        n.sinks.forEach(s => { if (s.b !== undefined) sinkNet.set(`${s.b}:${s.pin}`, i); else padNet.set(s.pad, i); });
+    });
+    const critNets = new Set(), critBles = new Set();
+    for (const st of impl.timing.regPath || []) { if (st.what === 'route') critNets.add(st.net); if (st.b !== undefined && st.what !== 'route') critBles.add(st.b); }
+    return { A, tileBle, bleXY, sinkNet, outNet, padNet, critNets, critBles };
+}
+const lutKind = l => (!l.ins.length ? 'constant' : l.ins.length === 1 && (l.init === 0xAAAA || l.init === 0x5555) ? 'wire' : 'logic');
+function drawDevice() {
+    const cv = $('fcan'), A = impl ? impl.arch : FP.getArch();
+    const W = A.W, H = A.H, n = W + 2, size = cv.clientWidth || 600, dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(size * dpr); cv.height = Math.round(size * dpr);
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cs = size / n, s = cs * 0.56, X = x => (x + 0.5) * cs, Y = y => size - (y + 0.5) * cs;
+    const css = getComputedStyle(document.documentElement), col = v => css.getPropertyValue(v).trim();
+    const C = { bg: col('--fp-bg'), tile: col('--fp-tile'), lut: col('--fp-lut'), thru: col('--fp-thru'), ff: col('--fp-ff'), pad: col('--fp-pad'), crit: col('--fp-crit'), sel: col('--fp-sel') };
+    const dark = (C.bg.match(/[0-9a-f]{2}/gi) || ['00']).map(x => parseInt(x, 16)).reduce((a, b) => a + b, 0) < 300;
+    g.fillStyle = C.bg;
+    g.fillRect(0, 0, size, size);
+    const L = layout();
+    view = { cs, size, W, H, X, Y, L };
+    // the ring of I/O tiles
+    g.strokeStyle = C.tile;
+    g.lineWidth = 1;
+    g.setLineDash([3, 3]);
+    g.strokeRect(cs * 0.5, cs * 0.5, size - cs, size - cs);
+    g.setLineDash([]);
+    const off = t => ((t - (A.T - 1) / 2) / A.T) * (cs - s) * 0.85;
+    const wireSeg = v => {
+        const w = A.wireInfo(v);
+        if (w.dir === 'x') return [X(w.x) - cs / 2, Y(w.y + 0.5) + off(w.t), X(w.x) + cs / 2, Y(w.y + 0.5) + off(w.t)];
+        return [X(w.x + 0.5) + off(w.t), Y(w.y) - cs / 2, X(w.x + 0.5) + off(w.t), Y(w.y) + cs / 2];
+    };
+    const padPos = k => {
+        const p = A.pads[k], two = A.pads.filter(q => q.x === p.x && q.y === p.y);
+        const j = two.indexOf(p), dx = two.length > 1 ? (j ? 0.22 : -0.22) * cs : 0;
+        return { x: X(p.x) + dx, y: Y(p.y) };
+    };
+    // a point where a pin meets a wire, and where it leaves its tile or pad
+    const stub = (pinNode, wire) => {
+        const sg = wireSeg(wire), mx = (sg[0] + sg[2]) / 2, my = (sg[1] + sg[3]) / 2;
+        const k = A.kind[pinNode];
+        if (k === 4 || k === 5) { const p = padPos(pinNode - A.PAD0); return [p.x, p.y, mx, my]; }
+        const pi = A.pinInfo(pinNode), cx = X(pi.x), cy = Y(pi.y), side = A.sideOf(pi.x, pi.y, wire);
+        const ex = side === 1 ? cx + s / 2 : side === 3 ? cx - s / 2 : mx, ey = side === 0 ? cy - s / 2 : side === 2 ? cy + s / 2 : my;
+        return [side === 0 || side === 2 ? mx : ex, side === 1 || side === 3 ? my : ey, mx, my];
+    };
+    const drawNet = (i, color, wdt) => {
+        const rn = impl.route.nets[i];
+        g.strokeStyle = color;
+        g.lineWidth = wdt;
+        g.beginPath();
+        for (const [v, u] of rn.parent) {
+            const kv = A.kind[v];
+            if (kv <= 1) { const sg = wireSeg(v); g.moveTo(sg[0], sg[1]); g.lineTo(sg[2], sg[3]); }
+            if (u >= 0 && A.kind[u] > 1 && kv <= 1) { const sg = stub(u, v); g.moveTo(sg[0], sg[1]); g.lineTo(sg[2], sg[3]); }
+            if (u >= 0 && A.kind[u] <= 1 && kv > 1) { const sg = stub(v, u); g.moveTo(sg[0], sg[1]); g.lineTo(sg[2], sg[3]); }
+        }
+        g.stroke();
+    };
+    if (impl) {
+        g.globalAlpha = dark ? 0.75 : 0.85;
+        impl.route.nets.forEach((rn, i) => drawNet(i, `hsl(${(i * 137.508) % 360} ${dark ? 65 : 70}% ${dark ? 58 : 42}%)`, Math.max(0.8, cs / 26)));
+        g.globalAlpha = 1;
+    }
+    // tiles
+    for (let y = 1; y <= H; y++) for (let x = 1; x <= W; x++) {
+        const t = (y - 1) * W + x - 1, b = L ? L.tileBle.get(t) : undefined;
+        const px = X(x) - s / 2, py = Y(y) - s / 2;
+        if (b === undefined) { g.strokeStyle = C.tile; g.lineWidth = 1; g.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1); continue; }
+        const ble = impl.cl.bles[b], kd = lutKind(ble);
+        g.fillStyle = kd === 'logic' ? C.lut : C.thru;
+        g.fillRect(px, py, s, s);
+        if (ble.ff) { g.fillStyle = C.ff; g.fillRect(px + s * 0.5, py + s * 0.5, s * 0.5, s * 0.5); }
+    }
+    // pins
+    A.pads.forEach((p, k) => {
+        const q = padPos(k), r = cs * 0.17;
+        const used = L && L.padNet.has(k);
+        g.fillStyle = used ? C.pad : 'transparent';
+        g.strokeStyle = used ? C.pad : C.tile;
+        g.lineWidth = 1;
+        if (used) g.fillRect(q.x - r, q.y - r, 2 * r, 2 * r); else g.strokeRect(q.x - r + 0.5, q.y - r + 0.5, 2 * r - 1, 2 * r - 1);
+    });
+    if (impl) {
+        // the critical path and the selection on top
+        for (const i of L.critNets) drawNet(i, C.crit, Math.max(1.6, cs / 12));
+        g.strokeStyle = C.crit;
+        g.lineWidth = 2;
+        for (const b of L.critBles) { const p = L.bleXY[b]; g.strokeRect(X(p.x) - s / 2 - 1.5, Y(p.y) - s / 2 - 1.5, s + 3, s + 3); }
+        if (sel) {
+            const nets = selNets();
+            for (const i of nets) drawNet(i, C.sel, Math.max(1.4, cs / 14));
+            g.strokeStyle = C.sel;
+            g.lineWidth = 2;
+            if (sel.k === 'tile') g.strokeRect(X(sel.x) - s / 2 - 3, Y(sel.y) - s / 2 - 3, s + 6, s + 6);
+            else { const q = padPos(sel.pad), r = cs * 0.3; g.strokeRect(q.x - r, q.y - r, 2 * r, 2 * r); }
+        }
+    }
+}
+function selNets() {
+    const L = layout(), out = new Set();
+    if (!sel || !L) return out;
+    if (sel.k === 'pad') { if (L.padNet.has(sel.pad)) out.add(L.padNet.get(sel.pad)); return out; }
+    const b = L.tileBle.get((sel.y - 1) * L.A.W + sel.x - 1);
+    if (b === undefined) return out;
+    for (let p = 0; p < 7; p++) { const k = `${b}:${p}`; if (L.sinkNet.has(k)) out.add(L.sinkNet.get(k)); if (L.outNet.has(k)) out.add(L.outNet.get(k)); }
+    return out;
+}
+function hitTest(ev) {
+    if (!view) return null;
+    const r = $('fcan').getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    const { cs, size, W, H } = view, x = Math.floor(px / cs), y = Math.floor((size - py) / cs);
+    if (x >= 1 && x <= W && y >= 1 && y <= H) return { k: 'tile', x, y };
+    const A = impl ? impl.arch : FP.getArch(), here = [];
+    A.pads.forEach((p, k) => { if (p.x === x && p.y === y) here.push(k); });
+    if (!here.length) return null;
+    if (here.length === 1) return { k: 'pad', pad: here[0] };
+    return { k: 'pad', pad: px - x * cs < cs / 2 ? here[0] : here[1] };
+}
+$('fcan').addEventListener('click', ev => { sel = hitTest(ev); drawDevice(); showInspector(); });
+$('fcan').addEventListener('mousemove', ev => {
+    const hit = hitTest(ev), A = impl ? impl.arch : FP.getArch();
+    $('fcan').title = !hit ? '' : hit.k === 'pad' ? `pin ${padName(A.pads[hit.pad])}` : `tile (${hit.x}, ${hit.y})`;
+});
+new ResizeObserver(() => drawDevice()).observe($('fcan'));
+new MutationObserver(() => drawDevice()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+if (window.matchMedia) window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => drawDevice());
+
+function showInspector() {
+    const box = $('finsp');
+    if (!impl) { box.replaceChildren(h('h3', null, 'Inspector'), h('p', { class: 'fp-hint' }, 'Implement the design, then click a tile or a pin of the chip to see how it is configured.')); return; }
+    if (!sel) { box.replaceChildren(h('h3', null, 'Inspector'), h('p', { class: 'fp-hint' }, 'Click a tile or a pin of the chip to see how it is configured and what it connects to. The red path is the slowest one.')); return; }
+    const L = layout(), A = L.A, cl = impl.cl, nets = cl.nets;
+    const netName = i => (i === undefined ? null : nets[i].name);
+    const fan = i => nets[i].sinks.length;
+    if (sel.k === 'pad') {
+        const p = A.pads[sel.pad], i = L.padNet.get(sel.pad);
+        const what = i === undefined ? 'This design does not use it.' : p.dir === 'in' ? `It drives ${netName(i)} to ${fan(i)} input${fan(i) === 1 ? '' : 's'}.` : `It shows ${netName(i)}.`;
+        box.replaceChildren(h('h3', null, `Pin ${padName(p)}`), h('p', null, `An ${p.dir === 'in' ? 'input' : 'output'} pin on the I/O ring at (${p.x}, ${p.y}). ${what}`));
+        return;
+    }
+    const b = L.tileBle.get((sel.y - 1) * A.W + sel.x - 1);
+    const MB = Math.ceil(Math.log2(4 * A.T + 1)), bits = 16 + 4 + 5 * MB + 8 * A.T;
+    if (b === undefined) { box.replaceChildren(h('h3', null, `Tile (${sel.x}, ${sel.y})`), h('p', null, `Empty: this design does not use it, and all ${bits} of its configuration bits are 0.`)); return; }
+    const ble = cl.bles[b], kd = lutKind(ble);
+    const rows = [];
+    const row = (k, v) => rows.push(h('tr', null, h('td', null, k), h('td', null, v)));
+    ble.ins.forEach((src, j) => row(`I${j}`, netName(L.sinkNet.get(`${b}:${j}`)) || 'not used'));
+    if (ble.ins.length < 4) row(ble.ins.length === 3 ? 'I3' : `I${ble.ins.length}-I3`, 'not used');
+    const o = L.outNet.get(`${b}:5`), q = L.outNet.get(`${b}:6`);
+    row('O', o === undefined ? 'not used outside the tile' : `drives ${fan(o)} input${fan(o) === 1 ? '' : 's'}`);
+    if (ble.ff) {
+        const ff = ble.ff;
+        row('flip-flop', `starts at ${ff.init}; ${ff.sr ? `${ff.srInv ? 'active-low' : 'active-high'} asynchronous ${ff.srv ? 'set to 1' : 'reset to 0'} from ${netName(L.sinkNet.get(`${b}:4`))}` : 'no asynchronous reset'}`);
+        row('Q', q === undefined ? 'not used' : `${ff.name}, drives ${fan(q)} input${fan(q) === 1 ? '' : 's'}`);
+    }
+    // the truth table, I3 I2 down the side and I1 I0 across
+    const tt = [h('span', { class: 'h' }, 'I3I2\\I1I0'), ...['00', '01', '10', '11'].map(c => h('span', { class: 'h' }, c))];
+    for (let r = 0; r < 4; r++) {
+        tt.push(h('span', { class: 'h' }, ['00', '01', '10', '11'][r]));
+        for (let c = 0; c < 4; c++) { const v = (ble.init >> (r * 4 + c)) & 1; tt.push(h('span', { class: v ? 'one' : null }, String(v))); }
+    }
+    const desc = kd === 'constant' ? `a constant ${ble.init & 1}` : kd === 'wire' ? `just ${ble.init === 0xAAAA ? 'passes I0 on' : 'inverts I0'}, a LUT used as a wire` : 'computes O from its inputs';
+    box.replaceChildren(
+        h('h3', null, `Tile (${sel.x}, ${sel.y}) · ${ble.name}`),
+        h('p', null, `The LUT ${desc}: INIT = 0x${ble.init.toString(16).toUpperCase().padStart(4, '0')}, one output bit for each combination of I3 I2 I1 I0.`),
+        h('div', { class: 'fp-tt', role: 'img', 'aria-label': 'Truth table of the LUT' }, ...tt),
+        h('div', { class: 'fp-scroll' }, h('table', { class: 'fp-kv' }, h('tbody', null, rows))),
+        h('p', null, `${bits} configuration bits.${L.critBles.has(b) ? ' This tile is on the critical path.' : ''}`));
+}
+
+function showReports() {
+    const box = $('freps');
+    if (!impl) { box.replaceChildren(); return; }
+    const A = impl.arch, m = impl.map, tm = impl.timing, cl = impl.cl, L = layout();
+    const kinds = { logic: 0, wire: 0, constant: 0 };
+    cl.bles.forEach(b => { kinds[lutKind(b)]++; });
+    let switches = 0;
+    for (const rn of impl.route.nets) for (const [v, u] of rn.parent) if (u >= 0 && A.kind[u] <= 1 && A.kind[v] <= 1) switches++;
+    const nt = A.W * A.H, pins = impl.pads.map(k => A.pads[k]);
+    const kv = (k, v) => h('tr', null, h('td', null, k), h('td', { class: 'n' }, v));
+    const util = h('div', { class: 'fp-card' }, h('h3', null, 'Utilization'), h('table', { class: 'fp-kv' }, h('tbody', null,
+        kv('Logic tiles', `${cl.bles.length} of ${nt} (${pct(cl.bles.length, nt)})`),
+        kv('LUTs', `${kinds.logic} logic${kinds.wire ? `, ${kinds.wire} as wires` : ''}${kinds.constant ? `, ${kinds.constant} constant` : ''}`),
+        kv('Flip-flops', `${m.ffs.length} of ${nt}`),
+        kv('Pins', `${pins.length} of ${A.pads.length}`),
+        kv('Wire segments', `${impl.route.wires.toLocaleString('en')} of ${A.NW.toLocaleString('en')} (${pct(impl.route.wires, A.NW)})`),
+        kv('Switches on', switches.toLocaleString('en')),
+        kv('LUT levels', String(m.levels)))),
+        h('p', null, `Synthesis made ${impl.gates.toLocaleString('en')} AND gates; mapping fitted them into ${m.luts.length} LUTs.`));
+    const where = st => {
+        if (st.b !== undefined && st.what !== 'route') { const p = L.bleXY[st.b]; return `${cl.bles[st.b].name} · tile (${p.x}, ${p.y})`; }
+        if (st.pad !== undefined) return `pin ${padName(A.pads[st.pad])}`;
+        if (st.net !== undefined) { const w = Math.max(0, Math.round((st.d - (st.what === 'route' && st.b !== undefined ? FP.DELAY.ipin : 0)) / FP.DELAY.wire)); return `${cl.nets[st.net].name} · ${w} wire${w === 1 ? '' : 's'}`; }
+        return '';
+    };
+    const pathTable = steps => {
+        let t = 0;
+        return h('div', { class: 'fp-scroll' }, h('table', { class: 'fp-path' }, h('tbody', null, steps.map(st => { t += st.d; return h('tr', null, h('td', { class: 'd' }, `+${st.d.toFixed(2)}`), h('td', { class: 't' }, t.toFixed(2)), h('td', null, st.what), h('td', null, where(st))); }))));
+    };
+    const period = tm.period;
+    const tcard = [h('h3', null, 'Timing')];
+    if (tm.fmax) {
+        tcard.push(h('p', null, `The slowest path from one flip-flop to the next takes ${ns(period)}, so the design runs at up to ${tm.fmax.toFixed(1)} MHz. ` +
+            `The board's clock (${fmtHz(store.clkHz)}) leaves it plenty of time; a real board's 100 MHz clock gives 10 ns, which this design ${period <= 10 ? `meets with ${ns(10 - period)} to spare` : `misses by ${ns(period - 10)}`}.`));
+        tcard.push(pathTable(tm.regPath));
+    } else tcard.push(h('p', null, 'There is no path from one flip-flop to another: the design has no clocked logic that feeds itself.'));
+    if (tm.inPath) tcard.push(h('p', null, `From an input pin, the slowest path takes ${ns(tm.inWorst)}.`));
+    if (tm.outPath) tcard.push(h('p', null, `From a flip-flop to an output pin, the slowest path takes ${ns(tm.outWorst)}.`));
+    const bytes = impl.bits.bytes, crc = Array.from(bytes.slice(-4), x => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+    const hex = Array.from(bytes.slice(0, 40), x => x.toString(16).padStart(2, '0')).join(' ');
+    const bcard = h('div', { class: 'fp-card' }, h('h3', null, 'Bitstream'), h('table', { class: 'fp-kv' }, h('tbody', null,
+        kv('Size', `${bytes.length.toLocaleString('en')} bytes (${(bytes.length * 8).toLocaleString('en')} bits)`),
+        kv('Bits set', `${impl.bits.ones.toLocaleString('en')} (${((100 * impl.bits.ones) / (bytes.length * 8)).toFixed(1)}%)`),
+        kv('CRC-32', crc))),
+        h('p', { class: 'fp-hex' }, `${hex} ...`),
+        h('p', null, 'It starts with "VF1" and the size of the chip; the tiles, the switch boxes and the pins follow, and the CRC closes it. Programming from the bitstream gives the emulator nothing else.'));
+    box.replaceChildren(util, h('div', { class: 'fp-card' }, ...tcard), bcard);
+}
+fpgaState();
+drawDevice();
+showInspector();
 programBoard();
 requestAnimationFrame(loop);
 })();

@@ -1754,6 +1754,11 @@ class Design {
         return x;
     }
     ex(n, want, sc) {
+        const r = this.ex0(n, want, sc);
+        if (this.annot && r) n._x = r;
+        return r;
+    }
+    ex0(n, want, sc) {
         switch (n.k) {
             case 'paren': return this.ex(n.e, want, sc);
             case 'int':
@@ -1893,6 +1898,10 @@ class Design {
         return this.mk(t, f, items.map(it => it.x));
     }
     conversion(T, n, sc) {
+        const r = this.conversion0(T, n, sc);
+        return this.annot && r ? Object.assign({}, r, { conv: T }) : r;
+    }
+    conversion0(T, n, sc) {
         if (n.args.length !== 1 || n.args[0].formal) fail(`a type conversion takes one value: ${T.name}(x)`, n.at);
         const a = n.args[0].val;
         let x = this.ex(a, null, sc);
@@ -1982,7 +1991,10 @@ class Design {
     /* ---------- function calls */
     call(fo, args, want, sc, at) {
         const list = fo.list;
-        if (list[0].builtin) return list[0].impl(this, args, want, sc, at);
+        if (list[0].builtin) {
+            const r = list[0].impl(this, args, want, sc, at);
+            return this.annot && r ? Object.assign({}, r, { builtin: list[0].name, bargs: args }) : r;
+        }
         let cand = list.filter(f => {
             const ps = this.paramList(f.decl);
             return args.length <= ps.length && ps.slice(args.length).every(p => p.def);
@@ -2047,6 +2059,7 @@ class Design {
         if (isArr(ret) && !ret.rng) t = sub(ret, { rng: null });
         const res = this.mk(t, f, xs.map(o => o.x));
         void D;
+        if (this.annot) res.ucall = { fd, nodes: ps.map((p, i) => vals[i] || p.def), scopes: ps.map((p, i) => (vals[i] ? sc : fd.scope)) };
         return res;
     }
     funcBody(fd) {
@@ -2067,6 +2080,7 @@ class Design {
         c.size = this.cur.slots;
         c.inits = this.cur.inits;
         c.run = body;
+        c.scope = fs;
         this.cur = saved;
         return c;
     }
@@ -2503,6 +2517,7 @@ class Design {
                 const ls = new Scope(sc, 'loop');
                 const slot = this.cur.slots++;
                 ls.add(s.param, { cls: 'loopvar', slot, t: rg.t || INTEGER, name: s.param }, at);
+                if (this.annot) Object.assign(s, { _ls: ls, _slot: slot, _rg: rg });
                 const body = this.seq(s.body, ls);
                 const label = s.label, D = this;
                 return E => {
@@ -2668,6 +2683,7 @@ class Design {
                 const ls = new Scope(sc, 'loop');
                 const slot = this.cur.slots++;
                 ls.add(s.param, { cls: 'loopvar', slot, t: rg.t || INTEGER, name: s.param }, at);
+                if (this.annot) Object.assign(s, { _ls: ls, _slot: slot, _rg: rg });
                 const body = this.gseq(s.body, ls);
                 const label = s.label;
                 return function* (E) {
@@ -2880,6 +2896,7 @@ class Design {
             P.drives = cw.drives;
             P.sens = [];
             this.cur = saved;
+            if (this.synth) this.synth.process(st, ps, P, path, true);
             return;
         }
         const body = this.seq(st.body, ps);
@@ -2907,6 +2924,7 @@ class Design {
         }
         if (!cur.edge) this.latchCheck(st.body, st.at);
         P.edge = cur.edge;
+        if (this.synth) this.synth.process(st, ps, P, path, false);
     }
     latchCheck(body, at) {
         const all = new Map();
@@ -3032,6 +3050,7 @@ class Design {
             P.drives = new Map([[sig, [{ off: 0, n: sig.n }]]]);
             P.sens = [...this.cur.reads.keys()];
             this.cur = saved;
+            if (this.synth) this.synth.portExpr(sig, t, actual, sc);
             es.add(name, { cls: 'sig', sig, off: 0, t, mode: 'in', name }, at);
         }
         this.depth = (this.depth || 0) + 1;
@@ -3350,5 +3369,27 @@ function compile(files, top, opts) {
     };
 }
 
-G.VHDL = { compile, lex, Parser, version: '1.1' };
+// synthesis (synth.js): the same analysis, then the design as gates and flip-flops
+function synthesize(files, top, opts) {
+    if (!G.VHDLSynth) throw new Error('synth.js is not loaded');
+    const D = new Design();
+    const names = files.map(f => f.name);
+    D.annot = true;
+    D.synth = G.VHDLSynth.create(D, opts || {});
+    try {
+        files.forEach((f, i) => D.addFile(f.text, i, f.name));
+        D.elaborate(top, opts && opts.generics);
+        const net = D.synth.finish();
+        return { ok: true, net, top, generics: D.topGenerics, warnings: D.warns.map(w => locate(w, names)) };
+    } catch (e) {
+        if (e instanceof VError) return { ok: false, errors: [locate(e, names)], warnings: D.warns.map(w => locate(w, names)) };
+        return { ok: false, errors: [{ file: null, fileIdx: -1, line: 0, msg: 'internal error: ' + e.message, stack: e.stack }], warnings: [] };
+    }
+}
+
+G.VHDL = {
+    compile, synthesize, lex, Parser, version: '1.2',
+    _int: { Design, VError, FILE, isArr, isInt, isEnum, isLogic, isLogicArr, isNum, isTime, tlen, rlen, leafCount, flat, unflat, vecBig, vecSBig, bigVec, defVal,
+        constrain, sub, mkRange, tname, STD_ULOGIC, STD_LOGIC, BIT, BOOLEAN, CHARACTER, INTEGER, UNIV, UNSIGNED, SIGNED, SLV, SULV, STRING }
+};
 })(typeof window !== 'undefined' ? window : globalThis);
